@@ -1,0 +1,8 @@
+[workspace]
+resolver = "3"
+members = [
+  "crates/neon-engine",
+  "crates/neon-core",
+  "crates/neon-renderer",
+  "game",
+]

@@ -1,0 +1,5 @@
+========
+August 19, 2026 -- Neonfall devlog
+========
+
+Decided to build the game in the open, have a good idea for a module stucture, just getting the basics in right now :)
