@@ -8,3 +8,4 @@ Apparently, I have to create an ApplicationHandler which handles keypress or som
 
 FAAFOd in the train, and now we have a blue screen running. https://sotrh.github.io/learn-wgpu/#introduction this page served as my bible, it's written for wasm but it works pretty well for desktop too, few parameters here and there change. but its amazing.
 
+Got one ugly triangle rendering, but that's graphics programming! I got a lot to read and understand but we're starting off strong :D
