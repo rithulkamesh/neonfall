@@ -1,13 +1,13 @@
 mod app;
 mod window;
 
-use neon_core::config::NeonConfig;
+use neon_core::config::NFConfig;
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 use window::NeonWindow;
 use winit::event_loop::{ControlFlow, EventLoop};
 
-pub fn init(config: impl Into<NeonConfig>) {
+pub fn init(config: impl Into<NFConfig>) {
     let config = config.into();
 
     let subscriber = FmtSubscriber::builder()
