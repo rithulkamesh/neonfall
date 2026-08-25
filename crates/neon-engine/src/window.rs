@@ -42,11 +42,15 @@ impl ApplicationHandler for NFWindow {
                 .unwrap(),
         ));
 
-        let state = pollster::block_on(neon_renderer::state::NFState::new(
+        let mut state = pollster::block_on(neon_renderer::state::NFState::new(
             window.clone().expect("failed to create window"),
-        ));
+        ))
+        .expect("failed to create state");
+        let size = state.window.inner_size();
+        state.resize(size.width, size.height);
+
         self.window = window;
-        self.state = Some(state.expect("failed to create state"));
+        self.state = Some(state);
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {

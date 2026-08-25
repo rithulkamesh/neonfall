@@ -4,5 +4,7 @@ August 25, 2026 -- Neonfall devlog
 
 I kinda started implementing an actual surface onto this game, still working out of my mac, no clue if linux or windows works at all... I understand why Big Game Engines use Shorthands like NF etc now.
 
-Apparently, I have to create an ApplicationHandler which handles keypress or something
+Apparently, I have to create an ApplicationHandler which handles keypress or something? 
+
+FAAFOd in the train, and now we have a blue screen running. https://sotrh.github.io/learn-wgpu/#introduction this page served as my bible, it's written for wasm but it works pretty well for desktop too, few parameters here and there change. but its amazing.
 
