@@ -72,6 +72,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.104"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
+
+[[package]]
 name = "arrayref"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -857,6 +863,7 @@ dependencies = [
  "glam",
  "neon-core",
  "neon-renderer",
+ "pollster",
  "tracing",
  "tracing-subscriber",
  "winit",
@@ -866,8 +873,10 @@ dependencies = [
 name = "neon-renderer"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "tracing",
  "wgpu",
+ "winit",
 ]
 
 [[package]]
@@ -1308,6 +1317,12 @@ dependencies = [
  "rustix 1.1.4",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "pollster"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc6355899e1c9462875b6757c79f3caa011a1fdae12bbb1a2e72dd1f234f8336"
 
 [[package]]
 name = "portable-atomic"

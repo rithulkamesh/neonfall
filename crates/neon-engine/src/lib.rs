@@ -1,10 +1,9 @@
-mod app;
 mod window;
 
 use neon_core::config::NFConfig;
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
-use window::NeonWindow;
+use window::NFWindow;
 use winit::event_loop::{ControlFlow, EventLoop};
 
 pub fn init(config: impl Into<NFConfig>) {
@@ -22,7 +21,7 @@ pub fn init(config: impl Into<NFConfig>) {
     // event_loop.set_control_flow(ControlFlow::Poll);
     event_loop.set_control_flow(ControlFlow::Wait);
 
-    let mut win = NeonWindow::new(config.window_title, config.window_size);
+    let mut win = NFWindow::new(config.window_title, config.window_size);
     info!("initialized neon.");
 
     event_loop.run_app(&mut win).expect("failed to run window");

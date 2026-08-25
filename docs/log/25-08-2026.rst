@@ -1,0 +1,8 @@
+========
+August 25, 2026 -- Neonfall devlog
+========
+
+I kinda started implementing an actual surface onto this game, still working out of my mac, no clue if linux or windows works at all... I understand why Big Game Engines use Shorthands like NF etc now.
+
+Apparently, I have to create an ApplicationHandler which handles keypress or something
+
