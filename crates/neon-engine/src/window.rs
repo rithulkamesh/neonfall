@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use glam::Vec2;
 use neon_renderer::state::NFState;
-use tracing::info;
+use tracing::{error, info};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -50,6 +50,11 @@ impl ApplicationHandler for NFWindow {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+        let state = match &mut self.state {
+            Some(canvas) => canvas,
+            None => return,
+        };
+
         match event {
             WindowEvent::CloseRequested => {
                 info!("a close was requested. exiting.");
@@ -70,7 +75,15 @@ impl ApplicationHandler for NFWindow {
                 .expect("window_state isn't initialized yet")
                 .handle_key(event_loop, code, key_state.is_pressed()),
             WindowEvent::RedrawRequested => {
-                self.window.as_ref().unwrap().request_redraw();
+                state.update();
+                match state.render() {
+                    Ok(_) => {}
+                    Err(e) => {
+                        // Log the error and exit gracefully
+                        error!("{e}");
+                        event_loop.exit();
+                    }
+                }
             }
             _ => (),
         }
