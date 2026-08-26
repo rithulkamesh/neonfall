@@ -1,0 +1,5 @@
+========
+August 26, 2026 -- Abstraction + Simplification 
+========
+
+I mean ugly code from 0 is not my mojo, so im kinda doing some abstraction before I move on...

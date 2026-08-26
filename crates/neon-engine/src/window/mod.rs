@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+mod input;
+
 use glam::Vec2;
 use neon_renderer::state::NFState;
 use tracing::{error, info};
@@ -11,6 +13,8 @@ use winit::{
     keyboard::PhysicalKey,
     window::{Window, WindowId},
 };
+
+use input::Input;
 
 pub struct NFWindow {
     window: Option<Arc<Window>>,
@@ -73,11 +77,7 @@ impl ApplicationHandler for NFWindow {
                         ..
                     },
                 ..
-            } => self
-                .state
-                .as_ref()
-                .expect("window_state isn't initialized yet")
-                .handle_key(event_loop, code, key_state.is_pressed()),
+            } => Input::handle_key(event_loop, code, key_state.is_pressed()),
             WindowEvent::RedrawRequested => {
                 state.update();
                 match state.render() {
