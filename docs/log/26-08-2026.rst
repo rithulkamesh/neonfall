@@ -8,8 +8,18 @@ I mean ugly code from 0 is not my mojo, so im kinda doing some abstraction befor
 
 Mesh data finally lives where it belongs: `game/src/mesh.rs`. Renderer keeps `Vertex` + `Mesh` (layout + how you hand geometry in), game owns the actual purple pentagon coords. `neon_engine::init(config, mesh)` threads it down. Also did the reexports so game can grab `Mesh` / `Vertex` off the engine without a direct renderer dep.
 
-Wired tracing for real -- adapter on init, state ready with vert/index counts, resize at debug, outdated surface at warn. And `WindowEvent::Resized` was missing lol, surface just hoped.
+actually wired tracing, adapter on init, state ready with vert/index counts, resize at debug, outdated surface at warn. And `WindowEvent::Resized` was missing lol, surface just hoped.
 
-Ugly triangle is content now. Renderer is plumbing. That's the split I wanted.
+Then set tracing up properly for a desktop app: `EnvFilter` / `RUST_LOG`, compact or json stdout, `ErrorLayer`, `log` bridge for wgpu/winit, span close timings, `#[instrument]` on gpu/pipeline/state/window. lives in `neon-engine/src/tracing.rs` (not some `tracing_setup` nonsense), docs in `docs/tracing.md`.
 
-Still later: `test.wgsl` still named test, `Lost` still hard-bails, `Mesh` is `'static` slices until we load real assets. Next feature that needs thickness can earn it.
+--------
+Evening -- Uniforms + a real camera (tutorial 6, engine-shaped)
+--------
+
+Went through https://sotrh.github.io/learn-wgpu/beginner/tutorial6-uniforms/ but didn't dump it all into one mega-`State` like the tutorial. Split it the way an actual engine would:
+
+- `neon-engine`: owns `Camera` (eye/target/up/aspect/fovy/near/far), builds the view-proj matrix with glam (DirectX perspective, so no OpenGL→WGPU hack matrix).
+- `neon-renderer`: owns `CameraUniform`, the uniform buffer, bind group layout, and `NFState::set_view_proj(Mat4)`. Engine never touches wgpu buffers; renderer never knows what a camera is.
+- Each `RedrawRequested`: engine does `state.set_view_proj(camera.build_view_projection_matrix())`, then `render()`. Pipeline takes the camera bind-group layout; shader uses `@group(0) @binding(0)`.
+
+got rodded a few times on the way: referenced `camera_bind_group_layout` in `Pipeline::new` before it existed (pass it in), copied tutorial `config.width` when we only have a `Vec2 size`, copied `@group(1)` / texcoords from the tutorial when we still only have colors on group 0, and — the disappearing pentagon — multiplied `view * proj` instead of `proj * view`.

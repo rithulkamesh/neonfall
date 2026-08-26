@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 use wgpu::{
     Backends, Device, DeviceDescriptor, ExperimentalFeatures, Features, Instance,
     InstanceDescriptor, Limits, PowerPreference, Queue, RequestAdapterOptions, Surface,
@@ -16,6 +16,7 @@ pub struct Gpu {
 }
 
 impl Gpu {
+    #[instrument(name = "gpu.new", skip(window), err)]
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
         let size = window.inner_size();
 

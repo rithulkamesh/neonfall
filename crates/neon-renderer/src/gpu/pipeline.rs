@@ -1,7 +1,7 @@
-use tracing::debug;
+use tracing::{debug, instrument};
 use wgpu::{
-    BlendState, ColorTargetState, ColorWrites, Device, Face, FragmentState, FrontFace,
-    MultisampleState, PipelineCompilationOptions, PipelineLayoutDescriptor, PolygonMode,
+    BindGroupLayout, BlendState, ColorTargetState, ColorWrites, Device, Face, FragmentState,
+    FrontFace, MultisampleState, PipelineCompilationOptions, PipelineLayoutDescriptor, PolygonMode,
     PrimitiveState, PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor,
     ShaderModuleDescriptor, ShaderSource, TextureFormat, VertexState,
 };
@@ -13,7 +13,12 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(device: &Device, format: TextureFormat) -> Self {
+    #[instrument(name = "pipeline.new", skip(device, camera_bind_group_layout), fields(format = ?format))]
+    pub fn new(
+        device: &Device,
+        format: TextureFormat,
+        camera_bind_group_layout: &BindGroupLayout,
+    ) -> Self {
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Shader"),
             source: ShaderSource::Wgsl(include_str!("shaders/test.wgsl").into()),
@@ -23,7 +28,7 @@ impl Pipeline {
 
         let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[],
+            bind_group_layouts: &[Some(camera_bind_group_layout)],
             immediate_size: 0,
         });
 

@@ -9,3 +9,5 @@ Cities sit empty. Factories still run. Corporate ruins hum under reclaiming gree
 A game engine and a game, written by hand — no AI — so I can actually understand how game making works. Don't care if it takes months or years. It's mine. Solo. Not accepting PRs.
 
 Daily notes live in [`docs/log/`](docs/log/) (`dd-mm-yyyy`).
+
+logging / spans: [`docs/tracing.md`](docs/tracing.md) (`RUST_LOG`, json).

@@ -4,7 +4,7 @@ mod input;
 
 use glam::Vec2;
 use neon_renderer::{Mesh, NFState};
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -16,27 +16,45 @@ use winit::{
 
 use input::Input;
 
+use crate::engine::Camera;
+
 pub struct NFWindow {
     window: Option<Arc<Window>>,
     title: String,
     size: Vec2,
     mesh: Mesh,
     state: Option<NFState>,
+    camera: Camera
 }
 
 impl NFWindow {
+    #[instrument(name = "window.new", skip(mesh), fields(title = %title, width = size.x, height = size.y))]
     pub fn new(title: String, size: Vec2, mesh: Mesh) -> Self {
+
+        let camera = Camera {
+            eye: (0.0, 1.0, 2.0).into(),
+            target: (0.0, 0.0, 0.0).into(),
+            up: glam::Vec3::Y,
+            aspect: size.x / size.y,
+            fovy: 45.0,
+            znear: 0.1,
+            zfar: 100.0,
+        };
+     
+
         Self {
             window: None,
             title,
             size,
             mesh,
             state: None,
+            camera
         }
     }
 }
 
 impl ApplicationHandler for NFWindow {
+    #[instrument(name = "window.resumed", skip(self, event_loop), fields(title = %self.title))]
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(
             event_loop
@@ -85,13 +103,15 @@ impl ApplicationHandler for NFWindow {
                     },
                 ..
             } => Input::handle_key(event_loop, code, key_state.is_pressed()),
-            WindowEvent::RedrawRequested => match state.render() {
+            WindowEvent::RedrawRequested => { 
+                state.set_view_proj(self.camera.build_view_projection_matrix());
+                match state.render() {
                 Ok(()) => state.request_redraw(),
                 Err(e) => {
-                    error!("{e}");
+                    error!(error = %e, "render failed");
                     event_loop.exit();
                 }
-            },
+            }},
             _ => (),
         }
     }

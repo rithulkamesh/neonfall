@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tracing::{debug, info, warn};
+use tracing::{debug, info, instrument, warn};
 use wgpu::{
     Color, CommandEncoderDescriptor, CurrentSurfaceTexture, LoadOp, Operations,
     RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor,
@@ -8,8 +8,27 @@ use wgpu::{
 };
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
+use glam::Mat4;
 
 use crate::gpu::{Gpu, Mesh, Pipeline};
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct CameraUniform {
+    view_proj: [[f32; 4]; 4],
+}
+
+impl CameraUniform {
+    fn new() -> Self {
+        Self {
+            view_proj: Mat4::IDENTITY.to_cols_array_2d(),
+        }
+    }
+
+    fn update_view_proj(&mut self, view_proj: Mat4) {
+        self.view_proj = view_proj.to_cols_array_2d();
+    }
+}
 
 pub struct NFState {
     gpu: Gpu,
@@ -19,12 +38,35 @@ pub struct NFState {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
+
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
+    camera_uniform: CameraUniform
 }
 
 impl NFState {
+    #[instrument(name = "state.new", skip(window, mesh), err)]
     pub async fn new(window: Arc<Window>, mesh: Mesh) -> anyhow::Result<Self> {
         let gpu = Gpu::new(window.clone()).await?;
-        let render_pipeline = Pipeline::new(&gpu.device, gpu.config.format);
+
+        let camera_bind_group_layout =
+            gpu.device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                    label: Some("camera_bind_group_layout"),
+                });
+
+        let render_pipeline =
+            Pipeline::new(&gpu.device, gpu.config.format, &camera_bind_group_layout);
 
         let vertex_buffer = gpu
             .device
@@ -42,6 +84,24 @@ impl NFState {
                 usage: wgpu::BufferUsages::INDEX,
             });
 
+        let camera_uniform = CameraUniform::new();
+        let camera_buffer = gpu
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Camera Buffer"),
+                contents: bytemuck::cast_slice(&[camera_uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
+
+        let camera_bind_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+            label: Some("camera_bind_group"),
+        });
+
         info!(
             vertices = mesh.vertices.len(),
             indices = mesh.indices.len(),
@@ -56,6 +116,9 @@ impl NFState {
             vertex_buffer,
             index_buffer,
             num_indices: mesh.indices.len() as u32,
+            camera_buffer,
+            camera_bind_group,
+            camera_uniform,
         })
     }
 
@@ -67,6 +130,7 @@ impl NFState {
         self.window.request_redraw();
     }
 
+    #[instrument(name = "state.resize", skip(self), fields(width, height))]
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             self.gpu.config.width = width;
@@ -79,6 +143,16 @@ impl NFState {
         }
     }
 
+    pub fn set_view_proj(&mut self, view_proj: Mat4) {
+        self.camera_uniform.update_view_proj(view_proj);
+        self.gpu.queue.write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[self.camera_uniform]),
+        );
+    }
+
+    #[instrument(name = "state.render", level = "trace", skip(self), err)]
     pub fn render(&mut self) -> anyhow::Result<()> {
         if !self.is_surface_configured {
             return Ok(());
@@ -108,12 +182,12 @@ impl NFState {
             .texture
             .create_view(&TextureViewDescriptor::default());
 
-        let mut encoder =
-            self.gpu
-                .device
-                .create_command_encoder(&CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                });
+        let mut encoder = self
+            .gpu
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
 
         {
             let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
@@ -139,6 +213,8 @@ impl NFState {
             });
 
             render_pass.set_pipeline(&self.render_pipeline.raw);
+            //TODO: Change when we add textures, Camera on 1, Textures on 0
+            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
