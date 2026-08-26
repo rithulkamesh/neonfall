@@ -2,8 +2,6 @@
   <img src="docs/neonfall.png" alt="Neonfall" width="420" />
 </p>
 
-# Neonfall
-
 Civilization collapsed.
 
 Cities sit empty. Factories still run. Corporate ruins hum under reclaiming green. You're left to explore what's left, rebuild what matters, and figure out what the world became after people stopped being the point.
