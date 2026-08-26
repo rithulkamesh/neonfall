@@ -1,3 +1,4 @@
+use tracing::debug;
 use wgpu::{
     BlendState, ColorTargetState, ColorWrites, Device, Face, FragmentState, FrontFace,
     MultisampleState, PipelineCompilationOptions, PipelineLayoutDescriptor, PolygonMode,
@@ -5,8 +6,10 @@ use wgpu::{
     ShaderModuleDescriptor, ShaderSource, TextureFormat, VertexState,
 };
 
+use crate::gpu::Vertex;
+
 pub struct Pipeline {
-    pub raw: RenderPipeline,
+    pub(crate) raw: RenderPipeline,
 }
 
 impl Pipeline {
@@ -15,6 +18,8 @@ impl Pipeline {
             label: Some("Shader"),
             source: ShaderSource::Wgsl(include_str!("shaders/test.wgsl").into()),
         });
+
+        debug!(?format, "building render pipeline");
 
         let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
@@ -28,7 +33,7 @@ impl Pipeline {
             vertex: VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[],
+                buffers: &[Some(Vertex::desc())],
                 compilation_options: PipelineCompilationOptions::default(),
             },
             fragment: Some(FragmentState {

@@ -3,7 +3,7 @@ use std::sync::Arc;
 mod input;
 
 use glam::Vec2;
-use neon_renderer::state::NFState;
+use neon_renderer::{Mesh, NFState};
 use tracing::{error, info};
 use winit::{
     application::ApplicationHandler,
@@ -20,15 +20,17 @@ pub struct NFWindow {
     window: Option<Arc<Window>>,
     title: String,
     size: Vec2,
+    mesh: Mesh,
     state: Option<NFState>,
 }
 
 impl NFWindow {
-    pub fn new(title: String, size: Vec2) -> Self {
+    pub fn new(title: String, size: Vec2, mesh: Mesh) -> Self {
         Self {
             window: None,
             title,
             size,
+            mesh,
             state: None,
         }
     }
@@ -36,7 +38,7 @@ impl NFWindow {
 
 impl ApplicationHandler for NFWindow {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window = Some(Arc::new(
+        let window = Arc::new(
             event_loop
                 .create_window(
                     Window::default_attributes()
@@ -44,16 +46,17 @@ impl ApplicationHandler for NFWindow {
                         .with_inner_size(LogicalSize::new(self.size.x, self.size.y)),
                 )
                 .unwrap(),
-        ));
+        );
 
-        let mut state = pollster::block_on(neon_renderer::state::NFState::new(
-            window.clone().expect("failed to create window"),
-        ))
-        .expect("failed to create state");
-        let size = state.window.inner_size();
+        info!(title = %self.title, "window created");
+
+        let mut state = pollster::block_on(NFState::new(window.clone(), self.mesh))
+            .expect("failed to create state");
+        let size = state.window_size();
         state.resize(size.width, size.height);
+        state.request_redraw();
 
-        self.window = window;
+        self.window = Some(window);
         self.state = Some(state);
     }
 
@@ -65,8 +68,12 @@ impl ApplicationHandler for NFWindow {
 
         match event {
             WindowEvent::CloseRequested => {
-                info!("a close was requested. exiting.");
+                info!("close requested; exiting");
                 event_loop.exit();
+            }
+
+            WindowEvent::Resized(size) => {
+                state.resize(size.width, size.height);
             }
 
             WindowEvent::KeyboardInput {
@@ -78,17 +85,13 @@ impl ApplicationHandler for NFWindow {
                     },
                 ..
             } => Input::handle_key(event_loop, code, key_state.is_pressed()),
-            WindowEvent::RedrawRequested => {
-                state.update();
-                match state.render() {
-                    Ok(_) => {}
-                    Err(e) => {
-                        // Log the error and exit gracefully
-                        error!("{e}");
-                        event_loop.exit();
-                    }
+            WindowEvent::RedrawRequested => match state.render() {
+                Ok(()) => state.request_redraw(),
+                Err(e) => {
+                    error!("{e}");
+                    event_loop.exit();
                 }
-            }
+            },
             _ => (),
         }
     }

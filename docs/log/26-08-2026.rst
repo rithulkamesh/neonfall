@@ -3,3 +3,13 @@ August 26, 2026 -- Abstraction + Simplification
 ========
 
 I mean ugly code from 0 is not my mojo, so im kinda doing some abstraction before I move on...
+
+`Gpu` is a real field on `NFState` now instead of unpacking surface/device/queue/config into a flat pile. Internals went private -- public surface is basically `new` / `resize` / `render` / `window_size` / `request_redraw`. Killed the empty `update()`, engine owns redraw again.
+
+Mesh data finally lives where it belongs: `game/src/mesh.rs`. Renderer keeps `Vertex` + `Mesh` (layout + how you hand geometry in), game owns the actual purple pentagon coords. `neon_engine::init(config, mesh)` threads it down. Also did the reexports so game can grab `Mesh` / `Vertex` off the engine without a direct renderer dep.
+
+Wired tracing for real -- adapter on init, state ready with vert/index counts, resize at debug, outdated surface at warn. And `WindowEvent::Resized` was missing lol, surface just hoped.
+
+Ugly triangle is content now. Renderer is plumbing. That's the split I wanted.
+
+Still later: `test.wgsl` still named test, `Lost` still hard-bails, `Mesh` is `'static` slices until we load real assets. Next feature that needs thickness can earn it.

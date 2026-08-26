@@ -874,6 +874,7 @@ name = "neon-renderer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bytemuck",
  "tracing",
  "wgpu",
  "winit",

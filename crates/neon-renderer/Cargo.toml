@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.104"
+bytemuck = { version = "1.25.2", features = ["derive"] }
 tracing = "0.1.44"
 wgpu = "30.0.0"
 winit = "0.30.13"
