@@ -6,34 +6,31 @@ use tracing_subscriber::{
     util::SubscriberInitExt,
 };
 
+
 pub fn install() {
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-        [
-            "info",
-            "neon_engine=info",
-            "neon_renderer=info",
-            "wgpu_core=warn",
-            "wgpu_hal=warn",
-            "naga=warn",
-        ]
-        .join(",")
-        .parse()
-        .unwrap()
-    });
+        let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+            [
+                "info",
+                "neon_engine=info",
+                "neon_renderer=info",
+                "wgpu_core=warn",
+                "wgpu_hal=warn",
+                "naga=warn",
+            ]
+            .join(",")
+            .parse()
+            .unwrap()
+        });
 
-    let json = std::env::var("NEON_LOG_FORMAT")
-        .map(|v| v.eq_ignore_ascii_case("json"))
-        .unwrap_or(false);
+        let json = std::env::var("NEON_LOG_FORMAT")
+            .map(|v| v.eq_ignore_ascii_case("json"))
+            .unwrap_or(false);
 
-    let _ = tracing_log::LogTracer::builder()
-        .with_max_level(log::LevelFilter::Trace)
-        .init();
-
-    if json {
-        install_json(filter);
-    } else {
-        install_pretty(filter);
-    }
+        if json {
+            install_json(filter);
+        } else {
+            install_pretty(filter);
+        }
 }
 
 fn try_init(result: Result<(), tracing_subscriber::util::TryInitError>) {

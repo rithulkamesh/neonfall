@@ -2,6 +2,7 @@ mod engine;
 mod tracing;
 mod window;
 
+use crate::tracing::install;
 use neon_core::config::NFConfig;
 use window::NFWindow;
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -11,7 +12,7 @@ pub use neon_renderer::{Mesh, NFState, Vertex};
 pub fn init(config: impl Into<NFConfig>, mesh: Mesh) {
     let config = config.into();
 
-    tracing::install();
+    install();
 
     let event_loop = EventLoop::new().unwrap();
 
