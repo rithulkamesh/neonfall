@@ -1,12 +1,12 @@
+mod engine;
 mod tracing;
 mod window;
-mod engine;
 
 use neon_core::config::NFConfig;
 use window::NFWindow;
 use winit::event_loop::{ControlFlow, EventLoop};
 
-pub use neon_renderer::{Mesh, Vertex, NFState};
+pub use neon_renderer::{Mesh, NFState, Vertex};
 
 pub fn init(config: impl Into<NFConfig>, mesh: Mesh) {
     let config = config.into();

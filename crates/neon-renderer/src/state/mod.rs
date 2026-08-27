@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use glam::Mat4;
 use tracing::{debug, info, instrument, warn};
 use wgpu::{
     Color, CommandEncoderDescriptor, CurrentSurfaceTexture, LoadOp, Operations,
@@ -8,7 +9,6 @@ use wgpu::{
 };
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
-use glam::Mat4;
 
 use crate::gpu::{Gpu, Mesh, Pipeline};
 
@@ -41,7 +41,7 @@ pub struct NFState {
 
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
-    camera_uniform: CameraUniform
+    camera_uniform: CameraUniform,
 }
 
 impl NFState {

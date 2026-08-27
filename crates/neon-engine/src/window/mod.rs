@@ -24,13 +24,12 @@ pub struct NFWindow {
     size: Vec2,
     mesh: Mesh,
     state: Option<NFState>,
-    camera: Camera
+    camera: Camera,
 }
 
 impl NFWindow {
     #[instrument(name = "window.new", skip(mesh), fields(title = %title, width = size.x, height = size.y))]
     pub fn new(title: String, size: Vec2, mesh: Mesh) -> Self {
-
         let camera = Camera {
             eye: (0.0, 1.0, 2.0).into(),
             target: (0.0, 0.0, 0.0).into(),
@@ -40,7 +39,6 @@ impl NFWindow {
             znear: 0.1,
             zfar: 100.0,
         };
-     
 
         Self {
             window: None,
@@ -48,7 +46,7 @@ impl NFWindow {
             size,
             mesh,
             state: None,
-            camera
+            camera,
         }
     }
 }
@@ -103,15 +101,16 @@ impl ApplicationHandler for NFWindow {
                     },
                 ..
             } => Input::handle_key(event_loop, code, key_state.is_pressed()),
-            WindowEvent::RedrawRequested => { 
+            WindowEvent::RedrawRequested => {
                 state.set_view_proj(self.camera.build_view_projection_matrix());
                 match state.render() {
-                Ok(()) => state.request_redraw(),
-                Err(e) => {
-                    error!(error = %e, "render failed");
-                    event_loop.exit();
+                    Ok(()) => state.request_redraw(),
+                    Err(e) => {
+                        error!(error = %e, "render failed");
+                        event_loop.exit();
+                    }
                 }
-            }},
+            }
             _ => (),
         }
     }

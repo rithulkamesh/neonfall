@@ -8,14 +8,17 @@ use tracing_subscriber::{
 
 pub fn install() {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-        EnvFilter::new(
-            "info,
-             neon_engine=info,
-             neon_renderer=info,
-             wgpu_core=warn,
-             wgpu_hal=warn,
-             naga=warn",
-        )
+        [
+            "info",
+            "neon_engine=info",
+            "neon_renderer=info",
+            "wgpu_core=warn",
+            "wgpu_hal=warn",
+            "naga=warn",
+        ]
+        .join(",")
+        .parse()
+        .unwrap()
     });
 
     let json = std::env::var("NEON_LOG_FORMAT")

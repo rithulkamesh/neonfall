@@ -1,5 +1,5 @@
 use glam::{
-    Mat4, Vec3, 
+    Mat4, Vec3,
     camera::rh::{proj::directx::perspective, view::look_at_mat4},
 };
 
@@ -12,7 +12,6 @@ pub struct Camera {
     pub znear: f32,
     pub zfar: f32,
 }
-
 
 impl Camera {
     pub fn build_view_projection_matrix(&self) -> Mat4 {
