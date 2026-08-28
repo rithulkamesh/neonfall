@@ -6,13 +6,13 @@ use wgpu::{
     ShaderModuleDescriptor, ShaderSource, TextureFormat, VertexState,
 };
 
-use crate::gpu::Vertex;
+use crate::gpu::NFVertex;
 
-pub struct Pipeline {
+pub struct NFPipeline {
     pub(crate) raw: RenderPipeline,
 }
 
-impl Pipeline {
+impl NFPipeline {
     #[instrument(name = "pipeline.new", skip(device, camera_bind_group_layout), fields(format = ?format))]
     pub fn new(
         device: &Device,
@@ -27,18 +27,18 @@ impl Pipeline {
         debug!(?format, "building render pipeline");
 
         let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
+            label: Some("Render NFPipeline Layout"),
             bind_group_layouts: &[Some(camera_bind_group_layout)],
             immediate_size: 0,
         });
 
         let raw = device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
+            label: Some("Render NFPipeline"),
             layout: Some(&layout),
             vertex: VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[Some(Vertex::desc())],
+                buffers: &[Some(NFVertex::desc())],
                 compilation_options: PipelineCompilationOptions::default(),
             },
             fragment: Some(FragmentState {

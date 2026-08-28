@@ -1,5 +1,5 @@
 pub mod gpu;
 pub mod state;
 
-pub use gpu::{Mesh, Pipeline, Vertex};
+pub use gpu::{NFMesh, NFPipeline, NFVertex};
 pub use state::NFState;

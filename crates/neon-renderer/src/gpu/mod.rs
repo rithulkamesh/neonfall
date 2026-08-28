@@ -1,7 +1,9 @@
 mod device;
 mod pipeline;
 mod vertex;
+mod instance;
 
-pub use device::Gpu;
-pub use pipeline::Pipeline;
-pub use vertex::{Mesh, Vertex};
+pub use device::NFGpu;
+pub use pipeline::NFPipeline;
+pub use vertex::{NFMesh, NFVertex};
+pub use instance::{NFInstance, NFInstanceRaw};

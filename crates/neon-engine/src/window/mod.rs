@@ -3,7 +3,7 @@ use std::sync::Arc;
 mod input;
 
 use glam::Vec2;
-use neon_renderer::{Mesh, NFState};
+use neon_renderer::{NFMesh, NFState};
 use tracing::{error, info, instrument};
 use winit::{
     application::ApplicationHandler,
@@ -22,14 +22,15 @@ pub struct NFWindow {
     window: Option<Arc<Window>>,
     title: String,
     size: Vec2,
-    mesh: Mesh,
+    mesh: NFMesh,
     state: Option<NFState>,
     camera: Camera,
+    camera_speed: f32,
 }
 
 impl NFWindow {
     #[instrument(name = "window.new", skip(mesh), fields(title = %title, width = size.x, height = size.y))]
-    pub fn new(title: String, size: Vec2, mesh: Mesh) -> Self {
+    pub fn new(title: String, size: Vec2, mesh: NFMesh) -> Self {
         let camera = Camera {
             eye: (0.0, 1.0, 2.0).into(),
             target: (0.0, 0.0, 0.0).into(),
@@ -47,6 +48,7 @@ impl NFWindow {
             mesh,
             state: None,
             camera,
+            camera_speed: 0.2 as f32,
         }
     }
 }
@@ -100,7 +102,13 @@ impl ApplicationHandler for NFWindow {
                         ..
                     },
                 ..
-            } => Input::handle_key(event_loop, code, key_state.is_pressed()),
+            } => Input::handle_key(
+                event_loop,
+                code,
+                key_state.is_pressed(),
+                &mut self.camera,
+                self.camera_speed,
+            ),
             WindowEvent::RedrawRequested => {
                 state.set_view_proj(self.camera.build_view_projection_matrix());
                 match state.render() {

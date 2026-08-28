@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 glam = "0.33.4"
-neon-engine = { path = "../crates/neon-engine/" }
+neon-engine = { path = "../crates/neon-engine" }

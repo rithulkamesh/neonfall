@@ -7,9 +7,9 @@ use neon_core::config::NFConfig;
 use window::NFWindow;
 use winit::event_loop::{ControlFlow, EventLoop};
 
-pub use neon_renderer::{Mesh, NFState, Vertex};
+pub use neon_renderer::{NFMesh, NFState, NFVertex};
 
-pub fn init(config: impl Into<NFConfig>, mesh: Mesh) {
+pub fn init(config: impl Into<NFConfig>, mesh: NFMesh) {
     let config = config.into();
 
     install();

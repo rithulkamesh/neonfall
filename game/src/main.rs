@@ -1,13 +1,12 @@
 mod mesh;
 
 use glam::Vec2;
-use neon_engine::{self, Mesh};
+use neon_engine::{self, NFMesh};
 
-use mesh::{INDICES, VERTICES};
 
 fn main() {
     neon_engine::init(
         ("Neonfall", Vec2::new(1280.0, 720.0), true),
-        Mesh::new(VERTICES, INDICES),
+        NFMesh::from("./models/cube.glb"),
     );
 }

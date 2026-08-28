@@ -1,16 +1,15 @@
 use std::sync::Arc;
-
 use glam::Mat4;
 use tracing::{debug, info, instrument, warn};
 use wgpu::{
     Color, CommandEncoderDescriptor, CurrentSurfaceTexture, LoadOp, Operations,
-    RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor,
+    RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor, Buffer,
     util::DeviceExt,
 };
-use winit::dpi::PhysicalSize;
-use winit::window::Window;
 
-use crate::gpu::{Gpu, Mesh, Pipeline};
+use winit::{window::Window, dpi::PhysicalSize};
+
+use crate::gpu::{NFGpu, NFMesh, NFPipeline};
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -31,23 +30,26 @@ impl CameraUniform {
 }
 
 pub struct NFState {
-    gpu: Gpu,
+    gpu: NFGpu,
     is_surface_configured: bool,
     window: Arc<Window>,
-    render_pipeline: Pipeline,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
+    render_pipeline: NFPipeline,
+    vertex_buffer: Buffer,
+    index_buffer: Buffer,
     num_indices: u32,
 
-    camera_buffer: wgpu::Buffer,
+    camera_buffer: Buffer,
     camera_bind_group: wgpu::BindGroup,
     camera_uniform: CameraUniform,
+
+    // instances: Vec<NFInstance>,
+    // instance_buffer: Buffer,
 }
 
 impl NFState {
     #[instrument(name = "state.new", skip(window, mesh), err)]
-    pub async fn new(window: Arc<Window>, mesh: Mesh) -> anyhow::Result<Self> {
-        let gpu = Gpu::new(window.clone()).await?;
+    pub async fn new(window: Arc<Window>, mesh: NFMesh) -> anyhow::Result<Self> {
+        let gpu = NFGpu::new(window.clone()).await?;
 
         let camera_bind_group_layout =
             gpu.device
@@ -66,7 +68,7 @@ impl NFState {
                 });
 
         let render_pipeline =
-            Pipeline::new(&gpu.device, gpu.config.format, &camera_bind_group_layout);
+            NFPipeline::new(&gpu.device, gpu.config.format, &camera_bind_group_layout);
 
         let vertex_buffer = gpu
             .device
@@ -85,6 +87,7 @@ impl NFState {
             });
 
         let camera_uniform = CameraUniform::new();
+
         let camera_buffer = gpu
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {

@@ -7,8 +7,7 @@ edition = "2024"
 anyhow = "1.0.104"
 bytemuck = { version = "1.25.2", features = ["derive"] }
 glam = "0.33.5"
-image = { version = "0.25.10", features = ["png", "jpeg"] }
 tracing = { version = "0.1.44", features = ["attributes"] }
 wgpu = "30.0.0"
 winit = "0.30.13"
-
+gltf = {version = "1.4.1", features = ["extras", "names"]}

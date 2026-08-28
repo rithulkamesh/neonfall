@@ -8,14 +8,14 @@ use wgpu::{
 };
 use winit::window::Window;
 
-pub struct Gpu {
+pub struct NFGpu {
     pub(crate) surface: Surface<'static>,
     pub(crate) device: Device,
     pub(crate) queue: Queue,
     pub(crate) config: SurfaceConfiguration,
 }
 
-impl Gpu {
+impl NFGpu {
     #[instrument(name = "gpu.new", skip(window), err)]
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
         let size = window.inner_size();
