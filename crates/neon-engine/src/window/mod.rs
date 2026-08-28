@@ -30,17 +30,7 @@ pub struct NFWindow {
 
 impl NFWindow {
     #[instrument(name = "window.new", skip(mesh), fields(title = %title, width = size.x, height = size.y))]
-    pub fn new(title: String, size: Vec2, mesh: NFMesh) -> Self {
-        let camera = Camera {
-            eye: (0.0, 1.0, 2.0).into(),
-            target: (0.0, 0.0, 0.0).into(),
-            up: glam::Vec3::Y,
-            aspect: size.x / size.y,
-            fovy: 45.0,
-            znear: 0.1,
-            zfar: 100.0,
-        };
-
+    pub fn new(title: String, size: Vec2, mesh: NFMesh, camera: Camera) -> Self {
         Self {
             window: None,
             title,
