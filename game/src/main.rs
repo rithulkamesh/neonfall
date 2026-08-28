@@ -1,5 +1,3 @@
-mod mesh;
-
 use glam::Vec2;
 use neon_engine::{self, NFMesh};
 
