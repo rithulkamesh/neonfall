@@ -68,7 +68,7 @@ impl ApplicationHandler for NFWindow {
 
         info!(title = %self.title, "window created");
 
-        let mut state = pollster::block_on(NFState::new(window.clone(), self.mesh))
+        let mut state = pollster::block_on(NFState::new(window.clone(), &self.mesh))
             .expect("failed to create state");
         let size = state.window_size();
         state.resize(size.width, size.height);

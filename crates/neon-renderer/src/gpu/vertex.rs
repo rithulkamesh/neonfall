@@ -33,14 +33,14 @@ impl NFVertex {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub struct NFMesh {
-    pub vertices: &'static [NFVertex],
-    pub indices: &'static [u16],
+    pub vertices: Vec<NFVertex>,
+    pub indices: Vec<u16>,
 }
 
 impl NFMesh {
-    pub const fn new(vertices: &'static [NFVertex], indices: &'static [u16]) -> Self {
+    pub const fn new(vertices: Vec<NFVertex>, indices: Vec<u16>) -> Self {
         Self { vertices, indices }
     }
 
@@ -100,8 +100,8 @@ impl From<&str> for NFMesh {
         let (loaded_vertices, loaded_indices) =
             NFMesh::load_gltf(path).expect("failed to load model");
         Self {
-            vertices: Box::leak(loaded_vertices.into_boxed_slice()),
-            indices: Box::leak(loaded_indices.into_boxed_slice()),
+            vertices: loaded_vertices,
+            indices: loaded_indices,
         }
     }
 }
@@ -117,8 +117,8 @@ impl From<&std::path::Path> for NFMesh {
         let (loaded_vertices, loaded_indices) =
             NFMesh::load_gltf(path).expect("failed to load model");
         Self {
-            vertices: Box::leak(loaded_vertices.into_boxed_slice()),
-            indices: Box::leak(loaded_indices.into_boxed_slice()),
+            vertices: loaded_vertices,
+            indices: loaded_indices,
         }
     }
 }

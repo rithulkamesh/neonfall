@@ -48,7 +48,7 @@ pub struct NFState {
 
 impl NFState {
     #[instrument(name = "state.new", skip(window, mesh), err)]
-    pub async fn new(window: Arc<Window>, mesh: NFMesh) -> anyhow::Result<Self> {
+    pub async fn new(window: Arc<Window>, mesh: &NFMesh) -> anyhow::Result<Self> {
         let gpu = NFGpu::new(window.clone()).await?;
 
         let camera_bind_group_layout =
@@ -74,7 +74,7 @@ impl NFState {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(mesh.vertices),
+                contents: bytemuck::cast_slice(&mesh.vertices),
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
@@ -82,7 +82,7 @@ impl NFState {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(mesh.indices),
+                contents: bytemuck::cast_slice(&mesh.indices),
                 usage: wgpu::BufferUsages::INDEX,
             });
 
