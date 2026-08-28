@@ -1,13 +1,13 @@
-use std::sync::Arc;
 use glam::Mat4;
+use std::sync::Arc;
 use tracing::{debug, info, instrument, warn};
 use wgpu::{
-    Color, CommandEncoderDescriptor, CurrentSurfaceTexture, LoadOp, Operations,
-    RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor, Buffer,
+    Buffer, Color, CommandEncoderDescriptor, CurrentSurfaceTexture, LoadOp, Operations,
+    RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor,
     util::DeviceExt,
 };
 
-use winit::{window::Window, dpi::PhysicalSize};
+use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::gpu::{NFGpu, NFMesh, NFPipeline};
 
@@ -41,7 +41,6 @@ pub struct NFState {
     camera_buffer: Buffer,
     camera_bind_group: wgpu::BindGroup,
     camera_uniform: CameraUniform,
-
     // instances: Vec<NFInstance>,
     // instance_buffer: Buffer,
 }

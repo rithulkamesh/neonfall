@@ -1,5 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use gltf::import;
+use tracing::{debug, info, instrument, trace, warn};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
@@ -13,7 +14,12 @@ impl NFVertex {
         Self { position, color }
     }
 
+    #[instrument(name = "vertex.desc", level = "trace")]
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+        trace!(
+            stride = std::mem::size_of::<NFVertex>(),
+            "building vertex buffer layout"
+        );
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<NFVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -44,22 +50,40 @@ impl NFMesh {
         Self { vertices, indices }
     }
 
-    pub fn load_gltf(path: impl AsRef<std::path::Path>) -> Result<(Vec<NFVertex>, Vec<u16>), gltf::Error> {
+    #[instrument(name = "mesh.load_gltf", skip(path), err)]
+    pub fn load_gltf(
+        path: impl AsRef<std::path::Path>,
+    ) -> Result<(Vec<NFVertex>, Vec<u16>), gltf::Error> {
+        let path = path.as_ref();
+        info!(path = ?path, "loading glTF mesh");
         let (document, buffers, _images) = import(path)?;
+        debug!(
+            path = ?path,
+            meshes = document.meshes().count(),
+            buffers = buffers.len(),
+            "glTF imported"
+        );
 
         let (vertices, indices) = document
             .meshes()
             .flat_map(|mesh| mesh.primitives())
+            .enumerate()
             .fold(
                 (Vec::new(), Vec::new()), // Returns 2 Vectors
-                |(mut vertices, mut indices), primitive| {
+                |(mut vertices, mut indices), (primitive_index, primitive)| {
                     let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
                     let base_vertex = vertices.len() as u16;
 
                     let positions: Vec<[f32; 3]> = reader
                         .read_positions()
                         .map(|iter| iter.collect())
-                        .unwrap_or_default();
+                        .unwrap_or_else(|| {
+                            warn!(
+                                primitive = primitive_index,
+                                "glTF primitive has no position attribute"
+                            );
+                            Vec::new()
+                        });
 
                     let colors: Vec<[f32; 3]> = reader
                         .read_colors(0)
@@ -69,6 +93,11 @@ impl NFMesh {
                                 .material()
                                 .pbr_metallic_roughness()
                                 .base_color_factor();
+                            debug!(
+                                primitive = primitive_index,
+                                color = ?&base_color[..3],
+                                "using material base color for primitive"
+                            );
                             vec![[base_color[0], base_color[1], base_color[2]]; positions.len()]
                         });
 
@@ -80,32 +109,49 @@ impl NFMesh {
                     );
 
                     let vertex_count = vertices.len() as u16 - base_vertex;
-                    indices.extend(
-                        reader
-                            .read_indices()
-                            .map(|read_indices| {
-                                read_indices
-                                    .into_u32()
-                                    .map(|idx| base_vertex + idx as u16)
-                                    .collect::<Vec<u16>>()
-                            })
-                            .unwrap_or_else(|| {
-                                (0..vertex_count)
-                                    .map(|offset| base_vertex + offset)
-                                    .collect::<Vec<u16>>()
-                            }),
+                    let primitive_indices = reader.read_indices().map(|read_indices| {
+                        read_indices
+                            .into_u32()
+                            .map(|idx| base_vertex + idx as u16)
+                            .collect::<Vec<u16>>()
+                    });
+                    let primitive_indices = primitive_indices.unwrap_or_else(|| {
+                        debug!(
+                            primitive = primitive_index,
+                            "glTF primitive has no index accessor; generating sequential indices"
+                        );
+                        (0..vertex_count)
+                            .map(|offset| base_vertex + offset)
+                            .collect::<Vec<u16>>()
+                    });
+                    indices.extend(primitive_indices);
+
+                    trace!(
+                        primitive = primitive_index,
+                        vertices = vertex_count,
+                        total_vertices = vertices.len(),
+                        total_indices = indices.len(),
+                        "processed glTF primitive"
                     );
 
                     (vertices, indices)
                 },
             );
 
+        info!(
+            path = ?path,
+            vertices = vertices.len(),
+            indices = indices.len(),
+            "glTF mesh loaded"
+        );
         Ok((vertices, indices))
     }
 }
 
 impl From<&str> for NFMesh {
+    #[instrument(name = "mesh.from_str", skip(path))]
     fn from(path: &str) -> Self {
+        debug!(path, "creating mesh from glTF path");
         let (loaded_vertices, loaded_indices) =
             NFMesh::load_gltf(path).expect("failed to load model");
         Self {
@@ -116,13 +162,16 @@ impl From<&str> for NFMesh {
 }
 
 impl From<String> for NFMesh {
+    #[instrument(name = "mesh.from_string", skip(path))]
     fn from(path: String) -> Self {
         Self::from(path.as_str())
     }
 }
 
 impl From<&std::path::Path> for NFMesh {
+    #[instrument(name = "mesh.from_path", skip(path))]
     fn from(path: &std::path::Path) -> Self {
+        debug!(path = ?path, "creating mesh from glTF path");
         let (loaded_vertices, loaded_indices) =
             NFMesh::load_gltf(path).expect("failed to load model");
         Self {
@@ -133,6 +182,7 @@ impl From<&std::path::Path> for NFMesh {
 }
 
 impl From<std::path::PathBuf> for NFMesh {
+    #[instrument(name = "mesh.from_path_buf", skip(path))]
     fn from(path: std::path::PathBuf) -> Self {
         Self::from(path.as_path())
     }
