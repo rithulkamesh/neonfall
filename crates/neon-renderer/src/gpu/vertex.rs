@@ -47,49 +47,58 @@ impl NFMesh {
     pub fn load_gltf(path: impl AsRef<std::path::Path>) -> Result<(Vec<NFVertex>, Vec<u16>), gltf::Error> {
         let (document, buffers, _images) = import(path)?;
 
-        let mut vertices = Vec::new();
-        let mut indices = Vec::new();
+        let (vertices, indices) = document
+            .meshes()
+            .flat_map(|mesh| mesh.primitives())
+            .fold(
+                (Vec::new(), Vec::new()), // Returns 2 Vectors
+                |(mut vertices, mut indices), primitive| {
+                    let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
+                    let base_vertex = vertices.len() as u16;
 
-        for mesh in document.meshes() {
-            for primitive in mesh.primitives() {
-                let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
+                    let positions: Vec<[f32; 3]> = reader
+                        .read_positions()
+                        .map(|iter| iter.collect())
+                        .unwrap_or_default();
 
-                let base_vertex = vertices.len() as u16;
+                    let colors: Vec<[f32; 3]> = reader
+                        .read_colors(0)
+                        .map(|colors| colors.into_rgb_f32().collect())
+                        .unwrap_or_else(|| {
+                            let base_color = primitive
+                                .material()
+                                .pbr_metallic_roughness()
+                                .base_color_factor();
+                            vec![[base_color[0], base_color[1], base_color[2]]; positions.len()]
+                        });
 
-                let positions: Vec<[f32; 3]> = reader
-                    .read_positions()
-                    .map(|iter| iter.collect())
-                    .unwrap_or_default();
+                    vertices.extend(
+                        positions
+                            .into_iter()
+                            .zip(colors.into_iter().chain(std::iter::repeat([1.0; 3])))
+                            .map(|(pos, col)| NFVertex::new(pos, col)),
+                    );
 
-                let colors: Vec<[f32; 3]> = if let Some(colors_iter) = reader.read_colors(0) {
-                    colors_iter.into_rgb_f32().collect()
-                } else {
-                    let material = primitive.material();
-                    let pbr = material.pbr_metallic_roughness();
-                    let base_color = pbr.base_color_factor();
-                    vec![[base_color[0], base_color[1], base_color[2]]; positions.len()]
-                };
+                    let vertex_count = vertices.len() as u16 - base_vertex;
+                    indices.extend(
+                        reader
+                            .read_indices()
+                            .map(|read_indices| {
+                                read_indices
+                                    .into_u32()
+                                    .map(|idx| base_vertex + idx as u16)
+                                    .collect::<Vec<u16>>()
+                            })
+                            .unwrap_or_else(|| {
+                                (0..vertex_count)
+                                    .map(|offset| base_vertex + offset)
+                                    .collect::<Vec<u16>>()
+                            }),
+                    );
 
-                for (pos, col) in positions.into_iter().zip(
-                    colors
-                        .into_iter()
-                        .chain(std::iter::repeat([1.0, 1.0, 1.0])),
-                ) {
-                    vertices.push(NFVertex::new(pos, col));
-                }
-
-                if let Some(read_indices) = reader.read_indices() {
-                    for idx in read_indices.into_u32() {
-                        indices.push(base_vertex + idx as u16);
-                    }
-                } else {
-                    let count = vertices.len() as u16 - base_vertex;
-                    for i in 0..count {
-                        indices.push(base_vertex + i);
-                    }
-                }
-            }
-        }
+                    (vertices, indices)
+                },
+            );
 
         Ok((vertices, indices))
     }
