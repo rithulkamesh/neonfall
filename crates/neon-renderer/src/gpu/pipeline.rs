@@ -6,7 +6,7 @@ use wgpu::{
     ShaderModuleDescriptor, ShaderSource, TextureFormat, VertexState,
 };
 
-use crate::gpu::NFVertex;
+use crate::gpu::{NFInstanceRaw, NFVertex};
 
 pub struct NFPipeline {
     pub(crate) raw: RenderPipeline,
@@ -22,6 +22,10 @@ var<uniform> camera: CameraUniform;
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) color: vec3<f32>,
+    @location(2) model_0: vec4<f32>,
+    @location(3) model_1: vec4<f32>,
+    @location(4) model_2: vec4<f32>,
+    @location(5) model_3: vec4<f32>,
 }
 
 struct VertexOutput {
@@ -32,8 +36,16 @@ struct VertexOutput {
 @vertex
 fn vs_main(model: VertexInput) -> VertexOutput {
     var out: VertexOutput;
+    let instance_model = mat4x4<f32>(
+        model.model_0,
+        model.model_1,
+        model.model_2,
+        model.model_3
+    );
+
     out.color = model.color;
-    out.clip_position = camera.view_proj * vec4<f32>(model.position, 1.0);
+    out.clip_position =
+        camera.view_proj * instance_model * vec4<f32>(model.position, 1.0);
     return out;
 }
 
@@ -70,7 +82,7 @@ impl NFPipeline {
             vertex: VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[Some(NFVertex::desc())],
+                buffers: &[Some(NFVertex::desc()), Some(NFInstanceRaw::desc())],
                 compilation_options: PipelineCompilationOptions::default(),
             },
             fragment: Some(FragmentState {

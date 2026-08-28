@@ -8,7 +8,7 @@ use window::NFWindow;
 use winit::event_loop::{ControlFlow, EventLoop};
 
 pub use engine::Camera;
-pub use neon_renderer::{NFMesh, NFState, NFVertex};
+pub use neon_renderer::{NFInstance, NFMesh, NFState, NFVertex};
 
 pub fn init(config: impl Into<NFConfig>, mesh: NFMesh, camera: Camera) {
     let config = config.into();

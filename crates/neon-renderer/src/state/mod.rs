@@ -9,7 +9,7 @@ use wgpu::{
 
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::gpu::{NFGpu, NFMesh, NFPipeline};
+use crate::gpu::{NFGpu, NFInstance, NFInstanceRaw, NFMesh, NFPipeline};
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -41,13 +41,19 @@ pub struct NFState {
     camera_buffer: Buffer,
     camera_bind_group: wgpu::BindGroup,
     camera_uniform: CameraUniform,
-    // instances: Vec<NFInstance>,
-    // instance_buffer: Buffer,
+    instances: Vec<NFInstance>,
+    instance_buffer: Buffer,
 }
 
 impl NFState {
-    #[instrument(name = "state.new", skip(window, mesh), err)]
+    #[instrument(name = "state.new", skip(window, mesh), fields(instance_count = mesh.instances.len()), err)]
     pub async fn new(window: Arc<Window>, mesh: &NFMesh) -> anyhow::Result<Self> {
+        let instances = &mesh.instances;
+        anyhow::ensure!(
+            !instances.is_empty(),
+            "at least one instance is required to render"
+        );
+
         let gpu = NFGpu::new(window.clone()).await?;
 
         let camera_bind_group_layout =
@@ -83,6 +89,15 @@ impl NFState {
                 label: Some("Index Buffer"),
                 contents: bytemuck::cast_slice(&mesh.indices),
                 usage: wgpu::BufferUsages::INDEX,
+            });
+
+        let instance_data: Vec<NFInstanceRaw> = instances.iter().map(NFInstance::to_raw).collect();
+        let instance_buffer = gpu
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Instance Buffer"),
+                contents: bytemuck::cast_slice(&instance_data),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             });
 
         let camera_uniform = CameraUniform::new();
@@ -121,6 +136,8 @@ impl NFState {
             camera_buffer,
             camera_bind_group,
             camera_uniform,
+            instances: instances.to_vec(),
+            instance_buffer,
         })
     }
 
@@ -152,6 +169,22 @@ impl NFState {
             0,
             bytemuck::cast_slice(&[self.camera_uniform]),
         );
+    }
+
+    pub fn set_instances(&mut self, instances: &[NFInstance]) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            instances.len() == self.instances.len(),
+            "instance count cannot change after renderer initialization"
+        );
+
+        let instance_data: Vec<NFInstanceRaw> = instances.iter().map(NFInstance::to_raw).collect();
+        self.gpu.queue.write_buffer(
+            &self.instance_buffer,
+            0,
+            bytemuck::cast_slice(&instance_data),
+        );
+        self.instances.clone_from_slice(instances);
+        Ok(())
     }
 
     #[instrument(name = "state.render", level = "trace", skip(self), err)]
@@ -218,8 +251,9 @@ impl NFState {
             //TODO: Change when we add textures, Camera on 1, Textures on 0
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as u32);
         }
 
         self.gpu.queue.submit(std::iter::once(encoder.finish()));

@@ -2,6 +2,8 @@ use bytemuck::{Pod, Zeroable};
 use gltf::import;
 use tracing::{debug, info, instrument, trace, warn};
 
+use super::NFInstance;
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub struct NFVertex {
@@ -43,11 +45,21 @@ impl NFVertex {
 pub struct NFMesh {
     pub vertices: Vec<NFVertex>,
     pub indices: Vec<u16>,
+    pub instances: Vec<NFInstance>,
 }
 
 impl NFMesh {
-    pub const fn new(vertices: Vec<NFVertex>, indices: Vec<u16>) -> Self {
-        Self { vertices, indices }
+    pub fn new(vertices: Vec<NFVertex>, indices: Vec<u16>) -> Self {
+        Self {
+            vertices,
+            indices,
+            instances: vec![NFInstance::new(glam::Vec3::ZERO, glam::Quat::IDENTITY)],
+        }
+    }
+
+    pub fn with_instances(mut self, instances: Vec<NFInstance>) -> Self {
+        self.instances = instances;
+        self
     }
 
     #[instrument(name = "mesh.load_gltf", skip(path), err)]
@@ -157,6 +169,7 @@ impl From<&str> for NFMesh {
         Self {
             vertices: loaded_vertices,
             indices: loaded_indices,
+            instances: vec![NFInstance::new(glam::Vec3::ZERO, glam::Quat::IDENTITY)],
         }
     }
 }
@@ -177,6 +190,7 @@ impl From<&std::path::Path> for NFMesh {
         Self {
             vertices: loaded_vertices,
             indices: loaded_indices,
+            instances: vec![NFInstance::new(glam::Vec3::ZERO, glam::Quat::IDENTITY)],
         }
     }
 }
