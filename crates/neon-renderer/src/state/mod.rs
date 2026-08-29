@@ -9,7 +9,7 @@ use wgpu::{
 
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::gpu::{NFGpu, NFInstance, NFInstanceRaw, NFMesh, NFPipeline};
+use crate::gpu::{NFGpu, NFInstance, NFInstanceRaw, NFMesh, NFPipeline, NFTextures};
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -34,6 +34,7 @@ pub struct NFState {
     is_surface_configured: bool,
     window: Arc<Window>,
     render_pipeline: NFPipeline,
+    textures: NFTextures,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     num_indices: u32,
@@ -56,6 +57,8 @@ impl NFState {
 
         let gpu = NFGpu::new(window.clone()).await?;
 
+        let textures_bind_group_layout = NFTextures::bind_group_layout(&gpu.device);
+
         let camera_bind_group_layout =
             gpu.device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -72,8 +75,34 @@ impl NFState {
                     label: Some("camera_bind_group_layout"),
                 });
 
-        let render_pipeline =
-            NFPipeline::new(&gpu.device, gpu.config.format, &camera_bind_group_layout);
+        let render_pipeline = NFPipeline::new(
+            &gpu.device,
+            gpu.config.format,
+            &textures_bind_group_layout,
+            &camera_bind_group_layout,
+        );
+
+        debug!(
+            has_diffuse = mesh.diffuse.is_some(),
+            atlas_grid = mesh.atlas_grid,
+            texture_width = mesh.diffuse.as_ref().map(|image| image.width),
+            texture_height = mesh.diffuse.as_ref().map(|image| image.height),
+            "uploading mesh textures"
+        );
+
+        let textures = match mesh.diffuse.as_ref() {
+            Some(image) => NFTextures::from_image(
+                &gpu.device,
+                &gpu.queue,
+                &textures_bind_group_layout,
+                image,
+                mesh.atlas_grid,
+            ),
+            None => {
+                debug!("mesh has no diffuse; falling back to white placeholder");
+                NFTextures::white(&gpu.device, &gpu.queue, &textures_bind_group_layout)
+            }
+        };
 
         let vertex_buffer = gpu
             .device
@@ -122,6 +151,11 @@ impl NFState {
         info!(
             vertices = mesh.vertices.len(),
             indices = mesh.indices.len(),
+            instances = instances.len(),
+            has_diffuse = mesh.diffuse.is_some(),
+            atlas_grid = mesh.atlas_grid,
+            texture_width = mesh.diffuse.as_ref().map(|image| image.width),
+            texture_height = mesh.diffuse.as_ref().map(|image| image.height),
             "renderer state ready"
         );
 
@@ -130,6 +164,7 @@ impl NFState {
             gpu,
             is_surface_configured: false,
             render_pipeline,
+            textures,
             vertex_buffer,
             index_buffer,
             num_indices: mesh.indices.len() as u32,
@@ -171,6 +206,7 @@ impl NFState {
         );
     }
 
+    #[instrument(name = "state.set_instances", skip(self, instances), fields(instance_count = instances.len()), err)]
     pub fn set_instances(&mut self, instances: &[NFInstance]) -> anyhow::Result<()> {
         anyhow::ensure!(
             instances.len() == self.instances.len(),
@@ -184,6 +220,7 @@ impl NFState {
             bytemuck::cast_slice(&instance_data),
         );
         self.instances.clone_from_slice(instances);
+        debug!(instance_count = instances.len(), "instance buffer updated");
         Ok(())
     }
 
@@ -248,8 +285,8 @@ impl NFState {
             });
 
             render_pass.set_pipeline(&self.render_pipeline.raw);
-            //TODO: Change when we add textures, Camera on 1, Textures on 0
-            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            render_pass.set_bind_group(0, self.textures.bind_group(), &[]);
+            render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);

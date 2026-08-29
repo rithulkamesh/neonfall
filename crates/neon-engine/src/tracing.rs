@@ -10,6 +10,7 @@ pub fn install() {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
         [
             "info",
+            "game=info",
             "neon_engine=info",
             "neon_renderer=info",
             "wgpu_core=warn",

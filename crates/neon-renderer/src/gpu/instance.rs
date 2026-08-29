@@ -4,23 +4,38 @@ use glam::{Quat, Vec3};
 pub struct NFInstance {
     pub position: Vec3,
     pub rotation: Quat,
+    pub texture_index: u32,
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct NFInstanceRaw {
     model: [[f32; 4]; 4],
+    texture_index: f32,
+    _pad: [f32; 3],
 }
 
 impl NFInstance {
     pub fn new(position: Vec3, rotation: Quat) -> Self {
-        Self { position, rotation }
+        Self {
+            position,
+            rotation,
+            texture_index: 0,
+        }
     }
+
+    pub fn with_texture_index(mut self, texture_index: u32) -> Self {
+        self.texture_index = texture_index;
+        self
+    }
+
     pub fn to_raw(&self) -> NFInstanceRaw {
         NFInstanceRaw {
             model: (glam::Mat4::from_translation(self.position)
                 * glam::Mat4::from_quat(self.rotation))
             .to_cols_array_2d(),
+            texture_index: self.texture_index as f32,
+            _pad: [0.0; 3],
         }
     }
 }
@@ -35,23 +50,28 @@ impl NFInstanceRaw {
             attributes: &[
                 wgpu::VertexAttribute {
                     offset: 0,
-                    shader_location: 2,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: size_of::<[f32; 4]>() as u64,
                     shader_location: 3,
                     format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
-                    offset: size_of::<[f32; 8]>() as u64,
+                    offset: size_of::<[f32; 4]>() as u64,
                     shader_location: 4,
                     format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
-                    offset: size_of::<[f32; 12]>() as u64,
+                    offset: size_of::<[f32; 8]>() as u64,
                     shader_location: 5,
                     format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: size_of::<[f32; 12]>() as u64,
+                    shader_location: 6,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: size_of::<[f32; 16]>() as u64,
+                    shader_location: 7,
+                    format: wgpu::VertexFormat::Float32,
                 },
             ],
         }

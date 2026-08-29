@@ -2,7 +2,7 @@
 
 logging goes to stdout via [`tracing`](https://docs.rs/tracing): a global subscriber in `neon-engine`, spans on gpu/window setup, and events in the renderer.
 
-installed from `neon_engine::init` via `tracing::install()`.
+installed from `neon_engine::init` via `tracing::install()`. call `neon_engine::install_tracing()` earlier if you want logs from game setup before `init` runs.
 
 ## quick start
 
@@ -11,10 +11,10 @@ installed from `neon_engine::init` via `tracing::install()`.
 cargo run -p game
 
 # see renderer debug events + span close timings
-RUST_LOG=neon_renderer=debug,neon_engine=debug cargo run -p game
+RUST_LOG=neon_renderer=debug,neon_engine=debug,game=debug cargo run -p game
 
 # every frame (noisy)
-RUST_LOG=neon_renderer=trace cargo run -p game
+RUST_LOG=neon_renderer::gpu::texture=trace,neon_renderer=debug,game=debug cargo run -p game
 
 # structured json on stdout
 NEON_LOG_FORMAT=json RUST_LOG=info cargo run -p game
@@ -29,7 +29,7 @@ NEON_LOG_FORMAT=json RUST_LOG=info cargo run -p game
 | `ErrorLayer` (`tracing-error`) | attach span context to errors |
 | `LogTracer` (`tracing-log`) | bridge `log` from wgpu/winit into tracing |
 | `FmtSpan::CLOSE` | print span duration when a span ends |
-| spans (`#[instrument]`) | `gpu.new`, `pipeline.new`, `state.new` / `resize` / `render`, `window.*` |
+| spans (`#[instrument]`) | `game.scene`, `gpu.new`, `texture.*`, `textures.*`, `mesh.*`, `pipeline.new`, `state.new` / `resize` / `render` / `set_instances`, `window.*` |
 
 default filter when `RUST_LOG` is unset:
 

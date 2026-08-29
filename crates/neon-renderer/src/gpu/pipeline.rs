@@ -13,24 +13,46 @@ pub struct NFPipeline {
 }
 
 const SHADER: &str = r#"
+@group(0) @binding(0)
+var t_diffuse: texture_2d<f32>;
+@group(0) @binding(1)
+var s_diffuse: sampler;
+@group(0) @binding(2)
+var<uniform> atlas: AtlasUniform;
+
+struct AtlasUniform {
+    grid: f32,
+};
+
 struct CameraUniform {
     view_proj: mat4x4<f32>,
 };
-@group(0) @binding(0)
+@group(1) @binding(0)
 var<uniform> camera: CameraUniform;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) color: vec3<f32>,
-    @location(2) model_0: vec4<f32>,
-    @location(3) model_1: vec4<f32>,
-    @location(4) model_2: vec4<f32>,
-    @location(5) model_3: vec4<f32>,
+    @location(2) tex_coords: vec2<f32>,
+    @location(3) model_0: vec4<f32>,
+    @location(4) model_1: vec4<f32>,
+    @location(5) model_2: vec4<f32>,
+    @location(6) model_3: vec4<f32>,
+    @location(7) texture_index: f32,
 }
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) color: vec3<f32>,
+    @location(1) tex_coords: vec2<f32>,
+}
+
+fn atlas_uv(base: vec2<f32>, index: u32) -> vec2<f32> {
+    let grid = u32(atlas.grid);
+    let col = index % grid;
+    let row = index / grid;
+    let cell = 1.0 / atlas.grid;
+    return vec2(f32(col), f32(row)) * cell + base * cell;
 }
 
 @vertex
@@ -44,6 +66,7 @@ fn vs_main(model: VertexInput) -> VertexOutput {
     );
 
     out.color = model.color;
+    out.tex_coords = atlas_uv(model.tex_coords, u32(model.texture_index));
     out.clip_position =
         camera.view_proj * instance_model * vec4<f32>(model.position, 1.0);
     return out;
@@ -51,16 +74,20 @@ fn vs_main(model: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(in.color, 1.0);
+    return textureSample(t_diffuse, s_diffuse, in.tex_coords) * vec4<f32>(in.color, 1.0);
 }
 "#;
 
 impl NFPipeline {
-    #[instrument(name = "pipeline.new", skip(device, camera_bind_group_layout), fields(format = ?format
-    ))]
+    #[instrument(
+        name = "pipeline.new",
+        skip(device, textures_bind_group_layout, camera_bind_group_layout),
+        fields(format = ?format)
+    )]
     pub fn new(
         device: &Device,
         format: TextureFormat,
+        textures_bind_group_layout: &BindGroupLayout,
         camera_bind_group_layout: &BindGroupLayout,
     ) -> Self {
         let shader = device.create_shader_module(ShaderModuleDescriptor {
@@ -72,7 +99,10 @@ impl NFPipeline {
 
         let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render NFPipeline Layout"),
-            bind_group_layouts: &[Some(camera_bind_group_layout)],
+            bind_group_layouts: &[
+                Some(textures_bind_group_layout),
+                Some(camera_bind_group_layout),
+            ],
             immediate_size: 0,
         });
 

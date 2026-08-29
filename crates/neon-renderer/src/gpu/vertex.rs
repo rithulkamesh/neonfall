@@ -3,17 +3,23 @@ use gltf::import;
 use tracing::{debug, info, instrument, trace, warn};
 
 use super::NFInstance;
+use super::NFTextureImage;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub struct NFVertex {
     pub position: [f32; 3],
     pub color: [f32; 3],
+    pub tex_coords: [f32; 2],
 }
 
 impl NFVertex {
-    pub const fn new(position: [f32; 3], color: [f32; 3]) -> Self {
-        Self { position, color }
+    pub const fn new(position: [f32; 3], color: [f32; 3], tex_coords: [f32; 2]) -> Self {
+        Self {
+            position,
+            color,
+            tex_coords,
+        }
     }
 
     #[instrument(name = "vertex.desc", level = "trace")]
@@ -36,6 +42,11 @@ impl NFVertex {
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x3,
                 },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
             ],
         }
     }
@@ -46,6 +57,8 @@ pub struct NFMesh {
     pub vertices: Vec<NFVertex>,
     pub indices: Vec<u16>,
     pub instances: Vec<NFInstance>,
+    pub diffuse: Option<NFTextureImage>,
+    pub atlas_grid: u32,
 }
 
 impl NFMesh {
@@ -54,27 +67,63 @@ impl NFMesh {
             vertices,
             indices,
             instances: vec![NFInstance::new(glam::Vec3::ZERO, glam::Quat::IDENTITY)],
+            diffuse: None,
+            atlas_grid: 1,
         }
     }
 
+    #[instrument(name = "mesh.with_instances", skip(self, instances), fields(instance_count = instances.len()))]
     pub fn with_instances(mut self, instances: Vec<NFInstance>) -> Self {
+        debug!(instance_count = instances.len(), "attached mesh instances");
         self.instances = instances;
+        self
+    }
+
+    #[instrument(
+        name = "mesh.with_diffuse",
+        skip(self, image),
+        fields(width = image.width, height = image.height, bytes = image.rgba.len())
+    )]
+    pub fn with_diffuse(mut self, image: NFTextureImage) -> Self {
+        debug!("using single diffuse texture");
+        self.diffuse = Some(image);
+        self.atlas_grid = 1;
+        self
+    }
+
+    #[instrument(name = "mesh.with_color_atlas", skip(self, colors), fields(color_count = colors.len()))]
+    pub fn with_color_atlas(mut self, colors: &[[u8; 3]]) -> Self {
+        let (image, grid) = NFTextureImage::color_atlas(colors);
+        debug!(
+            atlas_grid = grid,
+            width = image.width,
+            height = image.height,
+            "attached runtime color atlas to mesh"
+        );
+        self.diffuse = Some(image);
+        self.atlas_grid = grid;
+        for vertex in &mut self.vertices {
+            vertex.color = [1.0, 1.0, 1.0];
+        }
         self
     }
 
     #[instrument(name = "mesh.load_gltf", skip(path), err)]
     pub fn load_gltf(
         path: impl AsRef<std::path::Path>,
-    ) -> Result<(Vec<NFVertex>, Vec<u16>), gltf::Error> {
+    ) -> Result<(Vec<NFVertex>, Vec<u16>, Option<NFTextureImage>), gltf::Error> {
         let path = path.as_ref();
         info!(path = ?path, "loading glTF mesh");
-        let (document, buffers, _images) = import(path)?;
+        let (document, buffers, images) = import(path)?;
         debug!(
             path = ?path,
             meshes = document.meshes().count(),
             buffers = buffers.len(),
+            images = images.len(),
             "glTF imported"
         );
+
+        let diffuse = Self::diffuse_from_gltf(&document, &images);
 
         let (vertices, indices) = document
             .meshes()
@@ -113,11 +162,31 @@ impl NFMesh {
                             vec![[base_color[0], base_color[1], base_color[2]]; positions.len()]
                         });
 
+                    let tex_coords: Vec<[f32; 2]> = reader
+                        .read_tex_coords(0)
+                        .map(|coords| coords.into_f32().collect())
+                        .unwrap_or_else(|| {
+                            debug!(
+                                primitive = primitive_index,
+                                "glTF primitive has no tex coords; using zero UVs"
+                            );
+                            vec![[0.0, 0.0]; positions.len()]
+                        });
+
                     vertices.extend(
                         positions
                             .into_iter()
-                            .zip(colors.into_iter().chain(std::iter::repeat([1.0; 3])))
-                            .map(|(pos, col)| NFVertex::new(pos, col)),
+                            .zip(
+                                colors
+                                    .into_iter()
+                                    .chain(std::iter::repeat([1.0, 1.0, 1.0])),
+                            )
+                            .zip(
+                                tex_coords
+                                    .into_iter()
+                                    .chain(std::iter::repeat([0.0, 0.0])),
+                            )
+                            .map(|((pos, col), uv)| NFVertex::new(pos, col, uv)),
                     );
 
                     let vertex_count = vertices.len() as u16 - base_vertex;
@@ -154,9 +223,28 @@ impl NFMesh {
             path = ?path,
             vertices = vertices.len(),
             indices = indices.len(),
+            has_diffuse = diffuse.is_some(),
             "glTF mesh loaded"
         );
-        Ok((vertices, indices))
+        Ok((vertices, indices, diffuse))
+    }
+
+    fn diffuse_from_gltf(
+        document: &gltf::Document,
+        images: &[gltf::image::Data],
+    ) -> Option<NFTextureImage> {
+        document.meshes().find_map(|mesh| {
+            mesh.primitives().find_map(|primitive| {
+                primitive
+                    .material()
+                    .pbr_metallic_roughness()
+                    .base_color_texture()
+                    .map(|info| info.texture().source().index())
+            })
+        }).map(|image_index| {
+            debug!(image_index, "using glTF base color texture");
+            NFTextureImage::from_gltf(&images[image_index])
+        })
     }
 }
 
@@ -164,12 +252,14 @@ impl From<&str> for NFMesh {
     #[instrument(name = "mesh.from_str", skip(path))]
     fn from(path: &str) -> Self {
         debug!(path, "creating mesh from glTF path");
-        let (loaded_vertices, loaded_indices) =
+        let (loaded_vertices, loaded_indices, diffuse) =
             NFMesh::load_gltf(path).expect("failed to load model");
         Self {
             vertices: loaded_vertices,
             indices: loaded_indices,
             instances: vec![NFInstance::new(glam::Vec3::ZERO, glam::Quat::IDENTITY)],
+            diffuse,
+            atlas_grid: 1,
         }
     }
 }
@@ -185,12 +275,14 @@ impl From<&std::path::Path> for NFMesh {
     #[instrument(name = "mesh.from_path", skip(path))]
     fn from(path: &std::path::Path) -> Self {
         debug!(path = ?path, "creating mesh from glTF path");
-        let (loaded_vertices, loaded_indices) =
+        let (loaded_vertices, loaded_indices, diffuse) =
             NFMesh::load_gltf(path).expect("failed to load model");
         Self {
             vertices: loaded_vertices,
             indices: loaded_indices,
             instances: vec![NFInstance::new(glam::Vec3::ZERO, glam::Quat::IDENTITY)],
+            diffuse,
+            atlas_grid: 1,
         }
     }
 }
@@ -210,7 +302,7 @@ mod tests {
     fn test_load_gltf_cube() {
         let result = NFMesh::load_gltf("../../models/cube.glb");
         assert!(result.is_ok());
-        let (vertices, indices) = result.unwrap();
+        let (vertices, indices, _diffuse) = result.unwrap();
         assert!(!vertices.is_empty());
         assert!(!indices.is_empty());
 

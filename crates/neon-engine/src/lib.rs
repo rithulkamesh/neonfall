@@ -2,18 +2,21 @@ mod engine;
 mod tracing;
 mod window;
 
-use crate::tracing::install;
 use neon_core::config::NFConfig;
 use window::NFWindow;
 use winit::event_loop::{ControlFlow, EventLoop};
 
 pub use engine::Camera;
-pub use neon_renderer::{NFInstance, NFMesh, NFState, NFVertex};
+pub use neon_renderer::{NFInstance, NFMesh, NFState, NFTextureImage, NFVertex};
+
+pub fn install_tracing() {
+    crate::tracing::install();
+}
 
 pub fn init(config: impl Into<NFConfig>, mesh: NFMesh, camera: Camera) {
     let config = config.into();
 
-    install();
+    install_tracing();
 
     let event_loop = EventLoop::new().unwrap();
 

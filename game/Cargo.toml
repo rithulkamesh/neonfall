@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 glam = "0.33.4"
 neon-engine = { path = "../crates/neon-engine" }
+tracing = { version = "0.1.44", features = ["attributes"] }
