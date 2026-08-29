@@ -1,11 +1,10 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-mod input;
-
 use glam::Vec2;
 use neon_renderer::{NFDepthConfig, NFMesh, NFState};
 use tracing::{error, info, instrument};
+use wgpu::Color;
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -15,11 +14,10 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use input::Input;
-
 use crate::engine::Camera;
+use crate::game::{Game, GameContext};
 
-pub struct NFWindow {
+pub struct NFWindow<G: Game> {
     window: Option<Arc<Window>>,
     title: String,
     size: Vec2,
@@ -27,15 +25,15 @@ pub struct NFWindow {
     state: Option<NFState>,
     camera: Camera,
     depth: NFDepthConfig,
-    camera_speed: f32,
-    input: Input,
+    clear_color: Color,
+    game: G,
     last_frame: Instant,
 }
 
-impl NFWindow {
+impl<G: Game> NFWindow<G> {
     #[instrument(
         name = "window.new",
-        skip(mesh, depth),
+        skip(mesh, depth, game),
         fields(
             title = %title,
             width = size.x,
@@ -50,6 +48,8 @@ impl NFWindow {
         mesh: NFMesh,
         camera: Camera,
         depth: NFDepthConfig,
+        clear_color: Color,
+        game: G,
     ) -> Self {
         Self {
             window: None,
@@ -59,14 +59,14 @@ impl NFWindow {
             state: None,
             camera,
             depth,
-            camera_speed: 5.0,
-            input: Input::default(),
+            clear_color,
+            game,
             last_frame: Instant::now(),
         }
     }
 }
 
-impl ApplicationHandler for NFWindow {
+impl<G: Game> ApplicationHandler for NFWindow<G> {
     #[instrument(name = "window.resumed", skip(self, event_loop), fields(title = %self.title))]
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(
@@ -81,8 +81,15 @@ impl ApplicationHandler for NFWindow {
 
         info!(title = %self.title, "window created");
 
-        let mut state = pollster::block_on(NFState::new(window.clone(), &self.mesh, self.depth))
-            .expect("failed to create state");
+        let mut state = pollster::block_on(
+            NFState::new(
+                window.clone(),
+                &self.mesh,
+                self.depth,
+                self.clear_color,
+            ),
+        )
+        .expect("failed to create state");
         let size = state.window_size();
         state.resize(size.width, size.height);
         state.request_redraw();
@@ -116,15 +123,19 @@ impl ApplicationHandler for NFWindow {
                         ..
                     },
                 ..
-            } => self.input.handle_key(event_loop, code, key_state.is_pressed()),
+            } => {
+                let mut ctx = GameContext::new(&mut self.camera, state, event_loop);
+                self.game.on_key(&mut ctx, code, key_state.is_pressed());
+            }
             WindowEvent::RedrawRequested => {
                 let now = Instant::now();
                 let dt = now.duration_since(self.last_frame).as_secs_f32();
                 self.last_frame = now;
 
-                self.input
-                    .update_camera(&mut self.camera, self.camera_speed, dt);
+                let mut ctx = GameContext::new(&mut self.camera, state, event_loop);
+                self.game.update(&mut ctx, dt);
                 state.set_view_proj(self.camera.build_view_projection_matrix());
+
                 match state.render() {
                     Ok(()) => state.request_redraw(),
                     Err(e) => {

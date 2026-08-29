@@ -1,10 +1,28 @@
 use glam::{EulerRot, Quat, Vec2, Vec3};
-use neon_engine::{self, Camera, NFDepth, NFInstance, NFMesh};
+use neon_engine::{
+    Camera, Game, GameContext, NFDepth, NFInstance, NFMesh, OrbitCameraInput, KeyCode,
+};
 use tracing::{info, instrument};
 
-fn main() {
-    neon_engine::install_tracing();
+struct Neonfall {
+    camera_input: OrbitCameraInput,
+    camera_speed: f32,
+}
 
+impl Game for Neonfall {
+    fn update(&mut self, ctx: &mut GameContext, dt: f32) {
+        self.camera_input.update_camera(ctx.camera, self.camera_speed, dt);
+    }
+
+    fn on_key(&mut self, ctx: &mut GameContext, key: KeyCode, pressed: bool) {
+        if key == KeyCode::Escape && pressed {
+            ctx.exit();
+        }
+        self.camera_input.handle_key(key, pressed);
+    }
+}
+
+fn main() {
     let size = Vec2::new(1280.0, 720.0);
     let grid_size = 4;
     let mesh = build_scene(grid_size);
@@ -17,7 +35,7 @@ fn main() {
         "starting neonfall"
     );
 
-    neon_engine::init(
+    neon_engine::run(
         ("Neonfall", size, true),
         mesh,
         Camera::new(
@@ -30,6 +48,10 @@ fn main() {
             100.0,
         ),
         NFDepth::enabled(),
+        Neonfall {
+            camera_input: OrbitCameraInput::default(),
+            camera_speed: 5.0,
+        },
     );
 }
 

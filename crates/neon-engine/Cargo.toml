@@ -14,3 +14,4 @@ glam = "0.33.4"
 neon-core = { path = "../neon-core/" }
 neon-renderer = { path = "../neon-renderer" }
 pollster = "1.0.1"
+wgpu = "30.0.0"

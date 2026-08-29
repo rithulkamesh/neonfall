@@ -1,24 +1,22 @@
-use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
 
 use crate::engine::Camera;
 
 #[derive(Default)]
-pub struct Input {
+pub struct OrbitCameraInput {
     forward: bool,
     backward: bool,
     left: bool,
     right: bool,
 }
 
-impl Input {
-    pub fn handle_key(&mut self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
-        match code {
-            KeyCode::Escape if is_pressed => event_loop.exit(),
-            KeyCode::KeyW => self.forward = is_pressed,
-            KeyCode::KeyS => self.backward = is_pressed,
-            KeyCode::KeyA => self.left = is_pressed,
-            KeyCode::KeyD => self.right = is_pressed,
+impl OrbitCameraInput {
+    pub fn handle_key(&mut self, key: KeyCode, pressed: bool) {
+        match key {
+            KeyCode::KeyW => self.forward = pressed,
+            KeyCode::KeyS => self.backward = pressed,
+            KeyCode::KeyA => self.left = pressed,
+            KeyCode::KeyD => self.right = pressed,
             _ => {}
         }
     }

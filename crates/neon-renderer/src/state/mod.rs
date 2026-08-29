@@ -48,6 +48,7 @@ pub struct NFState {
     instance_buffer: Buffer,
     depth_config: NFDepthConfig,
     depth_texture: Option<NFDepthTexture>,
+    clear_color: Color,
 }
 
 impl NFState {
@@ -65,6 +66,7 @@ impl NFState {
         window: Arc<Window>,
         mesh: &NFMesh,
         depth: NFDepthConfig,
+        clear_color: Color,
     ) -> anyhow::Result<Self> {
         let instances = &mesh.instances;
         anyhow::ensure!(
@@ -206,7 +208,12 @@ impl NFState {
             instance_buffer,
             depth_config: depth,
             depth_texture,
+            clear_color,
         })
+    }
+
+    pub fn set_clear_color(&mut self, clear_color: Color) {
+        self.clear_color = clear_color;
     }
 
     pub fn window_size(&self) -> PhysicalSize<u32> {
@@ -325,12 +332,7 @@ impl NFState {
                     resolve_target: None,
                     depth_slice: None,
                     ops: Operations {
-                        load: LoadOp::Clear(Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
+                        load: LoadOp::Clear(self.clear_color),
                         store: StoreOp::Store,
                     },
                 })],

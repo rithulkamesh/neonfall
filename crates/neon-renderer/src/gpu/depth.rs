@@ -1,7 +1,7 @@
 use tracing::{debug, instrument};
 use wgpu::{
-    CompareFunction, DepthBiasState, DepthStencilState, Device, Extent3d, StencilState,
-    Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView,
+    CompareFunction, DepthBiasState, DepthStencilState, Device, Extent3d, StencilState, Texture,
+    TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView,
     TextureViewDescriptor,
 };
 
