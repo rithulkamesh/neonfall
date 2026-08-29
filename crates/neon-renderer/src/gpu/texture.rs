@@ -288,3 +288,53 @@ impl NFTextures {
         &self.bind_group
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn white_is_one_by_one_opaque_white() {
+        let img = NFTextureImage::white();
+        assert_eq!(img.width, 1);
+        assert_eq!(img.height, 1);
+        assert_eq!(img.rgba, [255, 255, 255, 255]);
+    }
+
+    #[test]
+    fn solid_matches_rgb() {
+        let img = NFTextureImage::solid([10, 20, 30]);
+        assert_eq!(img.rgba, [10, 20, 30, 255]);
+    }
+
+    #[test]
+    fn color_atlas_grid_is_power_of_two() {
+        let colors = vec![[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0]];
+        let (_, grid) = NFTextureImage::color_atlas(&colors);
+        assert!(grid.is_power_of_two());
+        assert_eq!(grid, 2);
+    }
+
+    #[test]
+    fn color_atlas_dimensions_use_eight_pixel_cells() {
+        let colors = vec![[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0]];
+        let (img, grid) = NFTextureImage::color_atlas(&colors);
+        assert_eq!(img.width, grid * 8);
+        assert_eq!(img.height, grid * 8);
+        assert_eq!(img.rgba.len() as u32, img.width * img.height * 4);
+    }
+
+    #[test]
+    fn color_atlas_empty_input_uses_single_cell() {
+        let (img, grid) = NFTextureImage::color_atlas(&[]);
+        assert_eq!(grid, 1);
+        assert_eq!(img.width, 8);
+        assert_eq!(img.height, 8);
+    }
+
+    #[test]
+    fn atlas_uniform_stores_grid() {
+        let uniform = NFAtlasUniform::new(4);
+        assert_eq!(uniform.grid, 4.0);
+    }
+}

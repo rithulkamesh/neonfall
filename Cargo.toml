@@ -4,5 +4,5 @@ members = [
   "crates/neon-engine",
   "crates/neon-core",
   "crates/neon-renderer",
-  "game",
+  "game", "crates/neon-ecs",
 ]

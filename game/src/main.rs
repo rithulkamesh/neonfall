@@ -94,9 +94,13 @@ fn build_scene(grid_size: u32) -> NFMesh {
         "built instanced cube grid"
     );
 
-    NFMesh::from("./models/cube.glb")
+    NFMesh::from(cube_model_path())
         .with_color_atlas(&colors)
         .with_instances(instances)
+}
+
+fn cube_model_path() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../models/cube.glb")
 }
 
 fn hsv_to_rgb(h: f32, s: f32, v: f32) -> [u8; 3] {
@@ -117,4 +121,59 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> [u8; 3] {
         ((g + m) * 255.0) as u8,
         ((b + m) * 255.0) as u8,
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hsv_red_hue() {
+        let rgb = hsv_to_rgb(0.0, 1.0, 1.0);
+        assert_eq!(rgb[0], 255);
+        assert!(rgb[1] < 5);
+        assert!(rgb[2] < 5);
+    }
+
+    #[test]
+    fn hsv_green_hue() {
+        let rgb = hsv_to_rgb(120.0, 1.0, 1.0);
+        assert!(rgb[0] < 5);
+        assert_eq!(rgb[1], 255);
+        assert!(rgb[2] < 5);
+    }
+
+    #[test]
+    fn hsv_blue_hue() {
+        let rgb = hsv_to_rgb(240.0, 1.0, 1.0);
+        assert!(rgb[0] < 5);
+        assert!(rgb[1] < 5);
+        assert_eq!(rgb[2], 255);
+    }
+
+    #[test]
+    fn hsv_zero_saturation_is_gray() {
+        let rgb = hsv_to_rgb(200.0, 0.0, 0.5);
+        assert_eq!(rgb[0], 127);
+        assert_eq!(rgb[1], 127);
+        assert_eq!(rgb[2], 127);
+    }
+
+    #[test]
+    fn build_scene_instance_count_matches_grid() {
+        let grid_size = 4;
+        let mesh = build_scene(grid_size);
+        assert_eq!(mesh.instances.len(), grid_size as usize * grid_size as usize);
+        assert!(mesh.diffuse.is_some());
+        assert_eq!(mesh.atlas_grid, 4);
+    }
+
+    #[test]
+    fn build_scene_assigns_unique_texture_indices() {
+        let grid_size = 2;
+        let mesh = build_scene(grid_size);
+        let mut indices: Vec<u32> = mesh.instances.iter().map(|i| i.texture_index).collect();
+        indices.sort_unstable();
+        assert_eq!(indices, vec![0, 1, 2, 3]);
+    }
 }

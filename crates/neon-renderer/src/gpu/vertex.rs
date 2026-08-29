@@ -297,6 +297,7 @@ impl From<std::path::PathBuf> for NFMesh {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use glam::{Quat, Vec3};
 
     #[test]
     fn test_load_gltf_cube() {
@@ -309,5 +310,55 @@ mod tests {
         let mesh = NFMesh::from("../../models/cube.glb");
         assert_eq!(mesh.vertices.len(), vertices.len());
         assert_eq!(mesh.indices.len(), indices.len());
+    }
+
+    #[test]
+    fn vertex_desc_stride_matches_size() {
+        let desc = NFVertex::desc();
+        assert_eq!(desc.array_stride as usize, std::mem::size_of::<NFVertex>());
+        assert_eq!(desc.step_mode, wgpu::VertexStepMode::Vertex);
+    }
+
+    #[test]
+    fn new_mesh_has_one_default_instance() {
+        let mesh = NFMesh::new(vec![], vec![]);
+        assert_eq!(mesh.instances.len(), 1);
+        assert_eq!(mesh.atlas_grid, 1);
+        assert!(mesh.diffuse.is_none());
+    }
+
+    #[test]
+    fn with_instances_replaces_defaults() {
+        let instances = vec![
+            NFInstance::new(Vec3::ONE, Quat::IDENTITY),
+            NFInstance::new(Vec3::splat(2.0), Quat::IDENTITY),
+        ];
+        let mesh = NFMesh::new(vec![], vec![]).with_instances(instances);
+        assert_eq!(mesh.instances.len(), 2);
+    }
+
+    #[test]
+    fn with_color_atlas_whitens_vertex_colors() {
+        let vertex = NFVertex::new([0.0, 0.0, 0.0], [0.2, 0.3, 0.4], [0.0, 0.0]);
+        let mesh = NFMesh::new(vec![vertex], vec![]).with_color_atlas(&[[255, 0, 0]]);
+        assert_eq!(mesh.vertices[0].color, [1.0, 1.0, 1.0]);
+        assert!(mesh.diffuse.is_some());
+        assert_eq!(mesh.atlas_grid, 1);
+    }
+
+    #[test]
+    fn with_diffuse_sets_single_cell_atlas() {
+        let image = NFTextureImage::solid([128, 64, 32]);
+        let mesh = NFMesh::new(vec![], vec![]).with_diffuse(image);
+        assert!(mesh.diffuse.is_some());
+        assert_eq!(mesh.atlas_grid, 1);
+    }
+
+    #[test]
+    fn load_gltf_cube_indices_are_valid() {
+        let (vertices, indices, _) =
+            NFMesh::load_gltf("../../models/cube.glb").expect("cube glb should load");
+        let max_index = indices.iter().copied().max().unwrap_or(0);
+        assert!(max_index < vertices.len() as u16);
     }
 }

@@ -1,3 +1,33 @@
+//! Application shell for Neonfall games.
+//!
+//! Owns the winit event loop, window lifecycle, camera math, orbit input,
+//! tracing setup, and the [`Game`] trait. Rendering is delegated to
+//! `neon-renderer`; window settings come from `neon-core::NFConfig`.
+//!
+//! # Example
+//!
+//! ```no_run
+//! use glam::{Vec3, Vec2};
+//! use neon_engine::{Camera, Game, GameContext, NFDepth, NFMesh, run, KeyCode};
+//!
+//! struct MyGame;
+//!
+//! impl Game for MyGame {
+//!     fn update(&mut self, _ctx: &mut GameContext, _dt: f32) {}
+//! }
+//!
+//! fn main() {
+//!     let size = Vec2::new(1280.0, 720.0);
+//!     run(
+//!         ("My Game", size, true),
+//!         NFMesh::from("./models/cube.glb"),
+//!         Camera::new(Vec3::new(0.0, 5.0, 10.0), Vec3::ZERO, Vec3::Y, size.x / size.y, 45.0, 0.1, 100.0),
+//!         NFDepth::enabled(),
+//!         MyGame,
+//!     );
+//! }
+//! ```
+
 mod engine;
 mod game;
 mod input;
@@ -20,6 +50,8 @@ pub fn install_tracing() {
     crate::tracing::install();
 }
 
+/// Start the engine: create a window, initialize the renderer, and run the
+/// event loop until the game calls [`GameContext::exit`] or the window closes.
 pub fn run<G: Game>(
     config: impl Into<NFConfig>,
     mesh: NFMesh,

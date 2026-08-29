@@ -21,6 +21,25 @@ impl Default for NFDepthConfig {
     }
 }
 
+#[cfg(test)]
+mod depth_config_tests {
+    use super::*;
+
+    #[test]
+    fn default_is_enabled_with_far_clear() {
+        let cfg = NFDepthConfig::default();
+        assert!(cfg.enabled);
+        assert_eq!(cfg.clear, 1.0);
+    }
+
+    #[test]
+    fn depth_stencil_state_uses_depth32_float() {
+        let state = NFDepthConfig::depth_stencil_state();
+        assert_eq!(state.format, NFDepthTexture::FORMAT);
+        assert_eq!(state.depth_compare, Some(CompareFunction::Less));
+    }
+}
+
 impl NFDepthConfig {
     pub fn depth_stencil_state() -> DepthStencilState {
         DepthStencilState {

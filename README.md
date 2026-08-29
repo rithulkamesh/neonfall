@@ -12,4 +12,21 @@ I have to add that I do use AI to learn how to write these pieces of code, where
 
 Daily notes live in [`docs/log/`](docs/log/) (`dd-mm-yyyy`).
 
+## crates
+
+| crate | docs |
+| --- | --- |
+| `neon-core` | [README](crates/neon-core/README.md) — window/config types |
+| `neon-engine` | [README](crates/neon-engine/README.md) — event loop, `Game` trait, camera |
+| `neon-renderer` | [README](crates/neon-renderer/README.md) — wgpu mesh, textures, draw |
+| `game` | [README](game/README.md) — Neonfall demo binary |
+
+Run tests (no GPU required for most):
+
+```bash
+cargo test -p neon-core -p neon-engine -p neon-renderer -p game
+```
+
+CI runs `cargo test --workspace` on every push/PR via [`.github/workflows/test.yml`](.github/workflows/test.yml).
+
 logging / spans: [`docs/tracing.md`](docs/tracing.md) (`RUST_LOG`, json).

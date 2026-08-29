@@ -2,7 +2,7 @@
 
 logging goes to stdout via [`tracing`](https://docs.rs/tracing): a global subscriber in `neon-engine`, spans on gpu/window setup, and events in the renderer.
 
-installed from `neon_engine::init` via `tracing::install()`. call `neon_engine::install_tracing()` earlier if you want logs from game setup before `init` runs.
+installed from `neon_engine::run` via `install_tracing()`. call `neon_engine::install_tracing()` earlier if you want logs from game setup before `run` runs.
 
 ## quick start
 
@@ -79,5 +79,5 @@ error!(error = %e, "render failed");
 ## layout
 
 - install: `crates/neon-engine/src/tracing.rs`
-- call site: `crates/neon-engine/src/lib.rs` (`init`)
+- call site: `crates/neon-engine/src/lib.rs` (`run`)
 - spans / events: `neon-engine` window + `neon-renderer` gpu/state

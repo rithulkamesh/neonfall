@@ -5,7 +5,13 @@ edition = "2024"
 
 [dependencies]
 tracing = { version = "0.1.44", features = ["attributes"] }
-tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt", "ansi", "json", "registry"] }
+tracing-subscriber = { version = "0.3.23", features = [
+    "env-filter",
+    "fmt",
+    "ansi",
+    "json",
+    "registry",
+] }
 tracing-error = "0.2.1"
 tracing-log = "0.2.0"
 log = "0.4.28"
@@ -13,5 +19,6 @@ winit = "0.30.13"
 glam = "0.33.4"
 neon-core = { path = "../neon-core/" }
 neon-renderer = { path = "../neon-renderer" }
+neon-ecs = { path = "../neon-ecs" }
 pollster = "1.0.1"
 wgpu = "30.0.0"
