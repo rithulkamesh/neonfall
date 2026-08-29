@@ -29,7 +29,7 @@ NEON_LOG_FORMAT=json RUST_LOG=info cargo run -p game
 | `ErrorLayer` (`tracing-error`) | attach span context to errors |
 | `LogTracer` (`tracing-log`) | bridge `log` from wgpu/winit into tracing |
 | `FmtSpan::CLOSE` | print span duration when a span ends |
-| spans (`#[instrument]`) | `game.scene`, `gpu.new`, `texture.*`, `textures.*`, `mesh.*`, `pipeline.new`, `state.new` / `resize` / `render` / `set_instances`, `window.*` |
+| spans (`#[instrument]`) | `game.scene`, `gpu.new`, `depth.new`, `texture.*`, `textures.*`, `mesh.*`, `pipeline.new`, `state.new` / `resize` / `render` / `set_instances`, `window.*` |
 
 default filter when `RUST_LOG` is unset:
 

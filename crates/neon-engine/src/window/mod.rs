@@ -1,9 +1,10 @@
 use std::sync::Arc;
+use std::time::Instant;
 
 mod input;
 
 use glam::Vec2;
-use neon_renderer::{NFMesh, NFState};
+use neon_renderer::{NFDepthConfig, NFMesh, NFState};
 use tracing::{error, info, instrument};
 use winit::{
     application::ApplicationHandler,
@@ -25,12 +26,31 @@ pub struct NFWindow {
     mesh: NFMesh,
     state: Option<NFState>,
     camera: Camera,
+    depth: NFDepthConfig,
     camera_speed: f32,
+    input: Input,
+    last_frame: Instant,
 }
 
 impl NFWindow {
-    #[instrument(name = "window.new", skip(mesh), fields(title = %title, width = size.x, height = size.y))]
-    pub fn new(title: String, size: Vec2, mesh: NFMesh, camera: Camera) -> Self {
+    #[instrument(
+        name = "window.new",
+        skip(mesh, depth),
+        fields(
+            title = %title,
+            width = size.x,
+            height = size.y,
+            depth_enabled = depth.enabled,
+            depth_clear = depth.clear
+        )
+    )]
+    pub fn new(
+        title: String,
+        size: Vec2,
+        mesh: NFMesh,
+        camera: Camera,
+        depth: NFDepthConfig,
+    ) -> Self {
         Self {
             window: None,
             title,
@@ -38,7 +58,10 @@ impl NFWindow {
             mesh,
             state: None,
             camera,
-            camera_speed: 0.2 as f32,
+            depth,
+            camera_speed: 5.0,
+            input: Input::default(),
+            last_frame: Instant::now(),
         }
     }
 }
@@ -58,7 +81,7 @@ impl ApplicationHandler for NFWindow {
 
         info!(title = %self.title, "window created");
 
-        let mut state = pollster::block_on(NFState::new(window.clone(), &self.mesh))
+        let mut state = pollster::block_on(NFState::new(window.clone(), &self.mesh, self.depth))
             .expect("failed to create state");
         let size = state.window_size();
         state.resize(size.width, size.height);
@@ -66,6 +89,7 @@ impl ApplicationHandler for NFWindow {
 
         self.window = Some(window);
         self.state = Some(state);
+        self.last_frame = Instant::now();
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -92,14 +116,14 @@ impl ApplicationHandler for NFWindow {
                         ..
                     },
                 ..
-            } => Input::handle_key(
-                event_loop,
-                code,
-                key_state.is_pressed(),
-                &mut self.camera,
-                self.camera_speed,
-            ),
+            } => self.input.handle_key(event_loop, code, key_state.is_pressed()),
             WindowEvent::RedrawRequested => {
+                let now = Instant::now();
+                let dt = now.duration_since(self.last_frame).as_secs_f32();
+                self.last_frame = now;
+
+                self.input
+                    .update_camera(&mut self.camera, self.camera_speed, dt);
                 state.set_view_proj(self.camera.build_view_projection_matrix());
                 match state.render() {
                     Ok(()) => state.request_redraw(),

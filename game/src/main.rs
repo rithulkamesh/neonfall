@@ -1,5 +1,5 @@
 use glam::{EulerRot, Quat, Vec2, Vec3};
-use neon_engine::{self, Camera, NFInstance, NFMesh};
+use neon_engine::{self, Camera, NFDepth, NFInstance, NFMesh};
 use tracing::{info, instrument};
 
 fn main() {
@@ -29,6 +29,7 @@ fn main() {
             0.1,
             100.0,
         ),
+        NFDepth::enabled(),
     );
 }
 

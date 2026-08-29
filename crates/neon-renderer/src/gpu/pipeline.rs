@@ -6,7 +6,7 @@ use wgpu::{
     ShaderModuleDescriptor, ShaderSource, TextureFormat, VertexState,
 };
 
-use crate::gpu::{NFInstanceRaw, NFVertex};
+use crate::gpu::{NFDepthConfig, NFInstanceRaw, NFVertex};
 
 pub struct NFPipeline {
     pub(crate) raw: RenderPipeline,
@@ -81,21 +81,22 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 impl NFPipeline {
     #[instrument(
         name = "pipeline.new",
-        skip(device, textures_bind_group_layout, camera_bind_group_layout),
-        fields(format = ?format)
+        skip(device, textures_bind_group_layout, camera_bind_group_layout, depth),
+        fields(format = ?format, depth_enabled = depth.enabled)
     )]
     pub fn new(
         device: &Device,
         format: TextureFormat,
         textures_bind_group_layout: &BindGroupLayout,
         camera_bind_group_layout: &BindGroupLayout,
+        depth: &NFDepthConfig,
     ) -> Self {
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Shader"),
             source: ShaderSource::Wgsl(SHADER.into()),
         });
 
-        debug!(?format, "building render pipeline");
+        debug!(?format, depth_enabled = depth.enabled, "building render pipeline");
 
         let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render NFPipeline Layout"),
@@ -134,7 +135,7 @@ impl NFPipeline {
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: depth.enabled.then(NFDepthConfig::depth_stencil_state),
             multisample: MultisampleState {
                 count: 1,
                 mask: !0,

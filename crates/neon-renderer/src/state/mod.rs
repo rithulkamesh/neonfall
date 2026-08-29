@@ -3,13 +3,15 @@ use std::sync::Arc;
 use tracing::{debug, info, instrument, warn};
 use wgpu::{
     Buffer, Color, CommandEncoderDescriptor, CurrentSurfaceTexture, LoadOp, Operations,
-    RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor,
-    util::DeviceExt,
+    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, StoreOp,
+    TextureViewDescriptor, util::DeviceExt,
 };
 
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::gpu::{NFGpu, NFInstance, NFInstanceRaw, NFMesh, NFPipeline, NFTextures};
+use crate::gpu::{
+    NFGpu, NFDepthConfig, NFDepthTexture, NFInstance, NFInstanceRaw, NFMesh, NFPipeline, NFTextures,
+};
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -44,11 +46,26 @@ pub struct NFState {
     camera_uniform: CameraUniform,
     instances: Vec<NFInstance>,
     instance_buffer: Buffer,
+    depth_config: NFDepthConfig,
+    depth_texture: Option<NFDepthTexture>,
 }
 
 impl NFState {
-    #[instrument(name = "state.new", skip(window, mesh), fields(instance_count = mesh.instances.len()), err)]
-    pub async fn new(window: Arc<Window>, mesh: &NFMesh) -> anyhow::Result<Self> {
+    #[instrument(
+        name = "state.new",
+        skip(window, mesh, depth),
+        fields(
+            instance_count = mesh.instances.len(),
+            depth_enabled = depth.enabled,
+            depth_clear = depth.clear
+        ),
+        err
+    )]
+    pub async fn new(
+        window: Arc<Window>,
+        mesh: &NFMesh,
+        depth: NFDepthConfig,
+    ) -> anyhow::Result<Self> {
         let instances = &mesh.instances;
         anyhow::ensure!(
             !instances.is_empty(),
@@ -80,6 +97,7 @@ impl NFState {
             gpu.config.format,
             &textures_bind_group_layout,
             &camera_bind_group_layout,
+            &depth,
         );
 
         debug!(
@@ -148,6 +166,15 @@ impl NFState {
             label: Some("camera_bind_group"),
         });
 
+        let depth_texture = depth.enabled.then(|| {
+            NFDepthTexture::new(
+                &gpu.device,
+                gpu.config.width,
+                gpu.config.height,
+                "depth_texture",
+            )
+        });
+
         info!(
             vertices = mesh.vertices.len(),
             indices = mesh.indices.len(),
@@ -156,6 +183,10 @@ impl NFState {
             atlas_grid = mesh.atlas_grid,
             texture_width = mesh.diffuse.as_ref().map(|image| image.width),
             texture_height = mesh.diffuse.as_ref().map(|image| image.height),
+            depth_enabled = depth.enabled,
+            depth_clear = depth.clear,
+            depth_width = depth_texture.as_ref().map(|_| gpu.config.width),
+            depth_height = depth_texture.as_ref().map(|_| gpu.config.height),
             "renderer state ready"
         );
 
@@ -173,6 +204,8 @@ impl NFState {
             camera_uniform,
             instances: instances.to_vec(),
             instance_buffer,
+            depth_config: depth,
+            depth_texture,
         })
     }
 
@@ -184,7 +217,7 @@ impl NFState {
         self.window.request_redraw();
     }
 
-    #[instrument(name = "state.resize", skip(self), fields(width, height))]
+    #[instrument(name = "state.resize", skip(self), fields(width, height, depth_enabled = self.depth_config.enabled))]
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             self.gpu.config.width = width;
@@ -193,6 +226,17 @@ impl NFState {
                 .surface
                 .configure(&self.gpu.device, &self.gpu.config);
             self.is_surface_configured = true;
+
+            if self.depth_config.enabled {
+                self.depth_texture = Some(NFDepthTexture::new(
+                    &self.gpu.device,
+                    width,
+                    height,
+                    "depth_texture",
+                ));
+                debug!(width, height, "depth texture resized");
+            }
+
             debug!(width, height, "surface resized");
         }
     }
@@ -262,6 +306,18 @@ impl NFState {
             });
 
         {
+            let depth_stencil_attachment =
+                self.depth_texture.as_ref().map(|depth_texture| {
+                    RenderPassDepthStencilAttachment {
+                        view: depth_texture.view(),
+                        depth_ops: Some(Operations {
+                            load: LoadOp::Clear(self.depth_config.clear),
+                            store: StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    }
+                });
+
             let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
@@ -278,7 +334,7 @@ impl NFState {
                         store: StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment,
                 occlusion_query_set: None,
                 timestamp_writes: None,
                 multiview_mask: None,
